@@ -1,4 +1,4 @@
-# Appolo - IoT Smart Lighting System
+# Apollo - IoT Smart Lighting System
 
 ## Get started
 
