@@ -244,7 +244,7 @@ const Schedule = () => {
         <View className="flex-1 bg-primary" style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}>
              {/* Title */}
             <Text className="mt-8 mb-4 font-bold text-white text-3xl text-center">
-                Scheduler
+                Daily Calendar
             </Text>
 
             {/* 24-Hour Calendar Scroll View (Horizontal) */}
@@ -326,7 +326,7 @@ const Schedule = () => {
 
              {/* Display List of Schedules (Uncommented by user) */}
              {/* Now maps over the 'schedules' state */}
-             <ScrollView className="flex-1 mt-4 px-5">
+             <ScrollView className="flex-1 mt-4 px-5 overflow-auto">
                  <Text className="mb-2 font-bold text-white text-xl">Existing Schedules:</Text>
                   {schedules.length === 0 ? (
                       <Text className="text-gray-400">No schedules added yet.</Text>
@@ -340,7 +340,7 @@ const Schedule = () => {
                                </View>
                                 {/* Delete Button */}
                                 <TouchableOpacity onPress={() => handleDeleteSchedule(schedule.id)} className="bg-red-500 p-2 rounded-md">
-                                     <Text className="text-white text-xs">Remove</Text>
+                                     <Text className="text-white text-xs">X</Text>
                                 </TouchableOpacity>
                            </View>
                        ))
