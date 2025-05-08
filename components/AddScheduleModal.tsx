@@ -1,7 +1,6 @@
 // components/AddScheduleModal.tsx
 import DateTimePicker from '@react-native-community/datetimepicker'; // Import Date/Time Picker
 import Slider from '@react-native-community/slider';
-import { Picker } from '@react-native-picker/picker'; // Import Picker for device selection
 import React, { useState } from 'react';
 import { Alert, Modal, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
@@ -123,9 +122,9 @@ const AddScheduleModal: React.FC<AddScheduleModalProps> = ({
          const baseClasses = "p-3 rounded-lg flex-1 mx-1 items-center";
          // Example coloring based on selection (using Tailwind classes)
          if (selectedLightType === type) {
-             if (type === 'warm') return `${baseClasses} bg-orange-500`;
-             if (type === 'natural') return `${baseClasses} bg-red-500`;
-             if (type === 'both') return `${baseClasses} bg-green-500`;
+             if (type === 'warm') return `${baseClasses} bg-accent`;
+             if (type === 'natural') return `${baseClasses} bg-accent`;
+             if (type === 'both') return `${baseClasses} bg-accent`;
          }
          // Default inactive style
          return `${baseClasses} bg-gray-400`; // Use a neutral background for inactive
@@ -147,26 +146,8 @@ const AddScheduleModal: React.FC<AddScheduleModalProps> = ({
             <View style={styles.modalOverlay} className='m-4 p-4'> {/* Semi-transparent background */}
                 <View className="gap-4 bg-primary m-4 p-20 rounded-lg w-full"> {/* Modal content container */}
                     <Text className="my-4 font-bold text-white text-3xl text-center">
-                        Add Config
+                        Add a Schedule
                     </Text>
-
-                     {availableDevices && availableDevices.length > 1 && (
-                         <View className="mb-4">
-                             <Text className="mb-2 font-semibold text-white text-lg">Select Device:</Text>
-                             <View style={styles.pickerContainer}>
-                                 <Picker
-                                     selectedValue={scheduleDeviceId}
-                                     onValueChange={(itemValue: string) => setScheduleDeviceId(itemValue)}
-                                     style={styles.picker}
-                                     itemStyle={styles.pickerItem}
-                                 >
-                                     {availableDevices.map(deviceIp => (
-                                         <Picker.Item key={deviceIp} label={deviceIp} value={deviceIp} />
-                                     ))}
-                                 </Picker>
-                             </View>
-                         </View>
-                     )}
 
                     {/* Light Selection */}
                     <Text className="self-center mb-2 font-semibold text-white text-lg">Light Type:</Text>
@@ -193,7 +174,7 @@ const AddScheduleModal: React.FC<AddScheduleModalProps> = ({
 
                     {/* Brightness Slider (appears dynamically) */}
                     {/* Show slider if 'Warm', 'Natural', or 'Both' is selected */}
-                    {(selectedLightType !== null) && ( // Could also explicitly check 'warm' | 'natural' | 'both'
+                    {(selectedLightType !== null) ? ( // Could also explicitly check 'warm' | 'natural' | 'both'
                         <View className="mb-4">
                             <Text className="mb-2 font-semibold text-white text-lg">
                                 Brightness ({brightness}%)
@@ -209,7 +190,7 @@ const AddScheduleModal: React.FC<AddScheduleModalProps> = ({
                                 thumbTintColor="#AB8BFF" // Example color
                             />
                         </View>
-                    )}
+                    ): null}
 
                     {/* Time Range Input */}
                     <Text className="mb-2 font-semibold text-white text-lg">Time Range:</Text>
@@ -220,7 +201,7 @@ const AddScheduleModal: React.FC<AddScheduleModalProps> = ({
                              <TouchableOpacity onPress={() => setShowStartTimePicker(true)} className="items-center bg-white p-3 border border-gray-500 rounded-lg">
                                  <Text className="text-white text-base">{formatTime(startTime)}</Text>
                              </TouchableOpacity>
-                             {showStartTimePicker && (
+                             {showStartTimePicker ? (
                                  <DateTimePicker
                                      value={startTime}
                                      mode="time"
@@ -228,7 +209,7 @@ const AddScheduleModal: React.FC<AddScheduleModalProps> = ({
                                      display={Platform.OS === 'ios' ? 'spinner' : 'default'} // 'spinner' on iOS, 'default' on Android
                                      onChange={(event, date) => handleDateChange(event, date, 'start')}
                                  />
-                             )}
+                             ) : null}
                         </View>
 
                         {/* End Time */}
@@ -237,7 +218,7 @@ const AddScheduleModal: React.FC<AddScheduleModalProps> = ({
                              <TouchableOpacity onPress={() => setShowEndTimePicker(true)} className="items-center bg-white p-3 border border-gray-500 rounded-lg">
                                  <Text className="text-white text-base">{formatTime(endTime)}</Text>
                              </TouchableOpacity>
-                              {showEndTimePicker && (
+                              {showEndTimePicker ? (
                                  <DateTimePicker
                                      value={endTime}
                                      mode="time"
@@ -245,7 +226,7 @@ const AddScheduleModal: React.FC<AddScheduleModalProps> = ({
                                       display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                                      onChange={(event, date) => handleDateChange(event, date, 'end')}
                                  />
-                             )}
+                             ): null }
                          </View>
                     </View>
 
@@ -253,13 +234,13 @@ const AddScheduleModal: React.FC<AddScheduleModalProps> = ({
                     {/* Action Buttons */}
                     <View className="flex-row justify-around mt-4">
                          <TouchableOpacity
-                            className="flex-1 items-center bg-red-500 mx-1 p-3 rounded-lg"
+                            className="flex-1 items-center bg-gray-400 mx-1 p-3 rounded-lg"
                             onPress={onClose} // Close button uses the onClose prop
                          >
                             <Text className="font-semibold text-white text-lg">Cancel</Text>
                          </TouchableOpacity>
                          <TouchableOpacity
-                            className="flex-1 items-center bg-green-500 mx-1 p-3 rounded-lg"
+                            className="flex-1 items-center bg-accent mx-1 p-3 rounded-lg"
                             onPress={handleAddPress} // Add button uses the handleAddPress handler
                          >
                             <Text className="font-semibold text-white text-lg">Add</Text>

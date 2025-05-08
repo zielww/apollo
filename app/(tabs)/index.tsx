@@ -153,12 +153,12 @@ export default function Index() {
             </Text>
 
              {/* Loading Indicator */}
-            {loading && (
+            {loading ? (
                 <View className="z-10 absolute inset-0 justify-center items-center bg-black bg-opacity-50">
                     <ActivityIndicator size="large" color="#ffffff" />
                     <Text className="mt-2 text-white">Sending Command...</Text>
                 </View>
-            )}
+            ): null}
 
              {/* Device Selection Picker */}
              <View className="mb-8">
@@ -177,9 +177,9 @@ export default function Index() {
                             <Picker.Item key={deviceIp} label={deviceIp} value={deviceIp} />
                         ))}
                          {/* Add an option if no devices are listed initially */}
-                         {availableDevices.length === 0 && (
+                         {availableDevices.length === 0 ? (
                              <Picker.Item label="No devices found" value="YOUR_ESP32_IP_ADDRESS" />
-                         )}
+                         ): null}
                     </Picker>
                 </View>
                 <Text className="mt-2 text-white text-sm text-center">

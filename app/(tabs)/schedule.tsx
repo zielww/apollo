@@ -1,5 +1,5 @@
-import AddScheduleModal from '@/components/AddScheduleModal';
-import React, { useState } from 'react'; // Import useState
+import AsyncStorage from '@react-native-async-storage/async-storage'; // Import AsyncStorage
+import React, { useEffect, useState } from 'react'; // Import useState and useEffect
 import {
   Alert,
   Dimensions,
@@ -10,42 +10,102 @@ import {
   View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+// import { router } from 'expo-router';
+
+import AddScheduleModal from '@/components/AddScheduleModal';
 
 const { width: screenWidth } = Dimensions.get('window');
-const HOUR_SLOT_WIDTH = 80; 
+const HOUR_SLOT_WIDTH = 80;
+const ASYNC_STORAGE_KEY = '@smart_lighting_schedules'; // Define a key for AsyncStorage
+
 
 interface ScheduleItem {
-    id: number; 
+    id: number;
     lightType: 'warm' | 'natural' | 'both';
-    brightness: number; 
-    startTime: Date; 
-    endTime: Date; 
-    deviceId: string; 
+    brightness: number;
+    startTime: Date; // Use Date objects
+    endTime: Date; // Use Date objects
+    deviceId: string;
 }
 
 
 const Schedule = () => {
-    const insets = useSafeAreaInsets(); 
-    
+    const insets = useSafeAreaInsets();
+
     const [isModalVisible, setIsModalVisible] = useState(false);
 
-    const [schedules, setSchedules] = useState<ScheduleItem[]>([
-         { id: 1, startTime: new Date(0,0,0, 7, 0), endTime: new Date(0,0,0, 8, 0), lightType: 'warm', brightness: 80, deviceId: '192.168.101.101' }, // Warm light 7:00 - 8:00
-         { id: 2, startTime: new Date(0,0,0, 18, 30), endTime: new Date(0,0,0, 20, 0), lightType: 'natural', brightness: 50, deviceId: '192.168.101.101' }, // Natural light 18:30 - 20:00
-         { id: 3, startTime: new Date(0,0,0, 22, 0), endTime: new Date(0,0,0, 22, 30), lightType: 'both', brightness: 100, deviceId: '192.168.101.101' }, // Both lights 22:00 - 22:30
-          { id: 4, startTime: new Date(0,0,0, 23, 30), endTime: new Date(0,0,0, 0, 30), lightType: 'warm', brightness: 60, deviceId: '192.168.101.101' }, // Warm light 23:30 - 00:30 (Spans midnight)
-    ]);
+    // Initialize schedules state as empty; data will be loaded from AsyncStorage
+    const [schedules, setSchedules] = useState<ScheduleItem[]>([]);
 
+
+    // --- Device List (Keep as is for now) ---
     const availableDevices = [
         '192.168.101.101',
+        '192.168.1.150',
+        '192.168.1.151',
     ];
     const defaultSelectedDeviceId = availableDevices.length > 0 ? availableDevices[0] : 'YOUR_ESP32_IP_ADDRESS';
+
 
     // Array representing 24 hours (0 to 23)
     const hours = Array.from({ length: 24 }, (_, i) => i);
 
 
-     // Helper to format Date object to HH:MM string (Needed for display in list/modal)
+    // --- AsyncStorage Functions ---
+
+    // Function to save schedules to AsyncStorage
+    const saveSchedules = async (schedulesToSave: ScheduleItem[]) => {
+        try {
+            // AsyncStorage can only store strings, so convert the array to JSON
+            const jsonValue = JSON.stringify(schedulesToSave);
+            await AsyncStorage.setItem(ASYNC_STORAGE_KEY, jsonValue);
+            console.log('Schedules successfully saved to AsyncStorage.');
+        } catch (e) {
+            console.error('Failed to save schedules to AsyncStorage:', e);
+            Alert.alert('Error', 'Failed to save schedules.');
+        }
+    };
+
+    // Function to load schedules from AsyncStorage
+    const loadSchedules = async () => {
+        try {
+            const jsonValue = await AsyncStorage.getItem(ASYNC_STORAGE_KEY);
+            if (jsonValue !== null) {
+                // Parse the JSON string back into an array of ScheduleItem objects
+                const loadedSchedules: ScheduleItem[] = JSON.parse(jsonValue);
+
+                // Need to convert startTime and endTime strings back into Date objects
+                 // JSON.stringify converts Dates to strings, JSON.parse doesn't convert them back automatically
+                 const schedulesWithDates = loadedSchedules.map(schedule => ({
+                     ...schedule,
+                     startTime: new Date(schedule.startTime), // Convert string to Date object
+                     endTime: new Date(schedule.endTime),     // Convert string to Date object
+                 }));
+
+                setSchedules(schedulesWithDates);
+                console.log('Schedules successfully loaded from AsyncStorage.');
+            } else {
+                 // No schedules saved yet, initialize with empty array (already done by useState)
+                 console.log('No schedules found in AsyncStorage.');
+            }
+        } catch (e) {
+            console.error('Failed to load schedules from AsyncStorage:', e);
+            Alert.alert('Error', 'Failed to load schedules.');
+        }
+    };
+
+    // --- useEffect to Load Schedules on Component Mount ---
+    useEffect(() => {
+        loadSchedules(); // Load schedules when the component mounts
+
+        // Optional: Clean up function if needed (not strictly necessary for loading on mount)
+        // return () => { /* cleanup */ };
+    }, []); // Empty dependency array means this effect runs only once on mount
+
+
+    // --- Helper functions (formatTime, getSegmentDetails - Keep as is) ---
+
+     // Helper to format Date object to HH:MM string
      const formatTime = (date: Date) => {
         const hours = date.getHours().toString().padStart(2, '0');
         const minutes = date.getMinutes().toString().padStart(2, '0');
@@ -129,7 +189,8 @@ const Schedule = () => {
       };
 
 
-    // Handler for the "Add Config" button
+    // --- Event Handlers ---
+
     const handleAddConfig = () => {
         console.log("Add Config button pressed");
         setIsModalVisible(true); // Show the modal
@@ -141,10 +202,17 @@ const Schedule = () => {
         // Add a unique ID to the new schedule
         const scheduleWithId = { ...newSchedule, id: Date.now() + Math.random() }; // Simple unique ID, add random for extra safety
 
-        setSchedules(prevSchedules => [...prevSchedules, scheduleWithId]);
+        // Add the new schedule to the state
+        setSchedules(prevSchedules => {
+            const updatedSchedules = [...prevSchedules, scheduleWithId];
+            saveSchedules(updatedSchedules); // Save the updated list to AsyncStorage
+            return updatedSchedules;
+        });
+
+        // TODO: You would also likely send this schedule to the ESP32/Backend here or via a separate sync process
     };
 
-     // Handler to delete a schedule (Optional: can be triggered from block tap/long press or a list item)
+     // Handler to delete a schedule
     const handleDeleteSchedule = (id: number) => {
          Alert.alert(
              "Delete Schedule",
@@ -152,17 +220,23 @@ const Schedule = () => {
              [
                  { text: "Cancel", style: "cancel" },
                  { text: "Delete", style: "destructive", onPress: () => {
-                     setSchedules(prevSchedules => prevSchedules.filter(sched => sched.id !== id));
+                     setSchedules(prevSchedules => {
+                        const updatedSchedules = prevSchedules.filter(sched => sched.id !== id);
+                        saveSchedules(updatedSchedules); // Save the updated list to AsyncStorage
+                        return updatedSchedules;
+                     });
                      console.log(`Deleted schedule with ID: ${id}`);
+                      // TODO: Notify ESP32/Backend about deletion
                  }}
              ]
          );
      };
 
-     // Handler for editing a schedule (Placeholder: can be triggered from block tap/long press or a list item)
+     // Handler for editing a schedule (Placeholder)
      const handleEditSchedule = (schedule: ScheduleItem) => {
           console.log("Edit schedule pressed:", schedule);
           // TODO: Implement Edit Modal/Form: Open the modal, pre-fill with schedule data, and change "Add" to "Save"
+          // You'll need to pass the schedule object and a different onSave handler
      };
 
 
@@ -174,12 +248,12 @@ const Schedule = () => {
             </Text>
 
             {/* 24-Hour Calendar Scroll View (Horizontal) */}
-            <View>
+            <View> {/* Wrapper View for the scrollable area */}
                 <ScrollView
-                    horizontal
+                    horizontal // Horizontal scrolling
                     showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={styles.calendarContentContainer}
-                    className="border-gray-700 border-b" 
+                    contentContainerStyle={styles.calendarContentContainer} // Style the content container
+                    className="border-gray-700 border-b" // Add bottom border to the scrollable area
                 >
                     {hours.map(hour => (
                         <View
@@ -191,40 +265,27 @@ const Schedule = () => {
                             ]}
                         >
                             {/* Hour Label */}
-                            {/* Placed inside the hour slot, centered */}
                              <Text className="mb-1 text-gray-400 text-xs text-center">
                                 {hour.toString().padStart(2, '0')}:00
                              </Text>
 
-                             {/* Schedule Blocks Area (within the hour slot, using absolute positioning relative to hourSlot) */}
-                                {/* Visual representation of schedule blocks within this hour */}
-                                {/* Map over the 'schedules' state to find and render blocks */}
+                             {/* Schedule Blocks Area (within the hour slot) */}
                                 {schedules.map(schedule => {
-                                    // Get segment details for this schedule within the current hour
-                                     // The getSegmentDetails function handles midnight spanning and calculates horizontal position/width
-                                    const segmentDetails = getSegmentDetails(schedule, hour); // Pass the current hour to the helper
+                                    const segmentDetails = getSegmentDetails(schedule, hour);
 
-                                    // If the helper found an overlapping segment for this hour, render the block
                                     if (segmentDetails) {
                                          const { schedule: originalSchedule, style, className, segmentDurationMinutes } = segmentDetails;
 
                                         return (
-                                             // Schedule block TouchableOpacity (make it tappable for interaction)
                                             <TouchableOpacity
-                                                 // Unique key for each rendered block segment
-                                                 // Combine schedule ID and the hour it appears in
                                                  key={`${originalSchedule.id}-${hour}`}
-                                                 style={style} 
-                                                className={`absolute rounded-sm ${className} items-center 
-                                                justify-center p-0.5 z-10`}
-                                                
-                                                 onPress={() => { handleEditSchedule(originalSchedule); }} // Example: Edit on tap
-                                                 onLongPress={() => { handleDeleteSchedule(originalSchedule.id); }} // Example: Delete on long press
+                                                className={`absolute rounded-sm ${className} items-center justify-center p-0.5 z-10`}
+                                                style={style}
+                                                 onPress={() => { handleEditSchedule(originalSchedule); }}
+                                                 onLongPress={() => { handleDeleteSchedule(originalSchedule.id); }}
                                             >
-                                                {/* Display Info Inside the Block */}
-                                                 {/* Adjust text size and layout based on block width (segmentDurationMinutes affects width) */}
-                                                  {/* Showing type and brightness for segments >= 30 mins */}
-                                                  {segmentDurationMinutes >= 30 && (
+                                                 {/* Display Info Inside the Block */}
+                                                  {segmentDurationMinutes >= 30 ? (
                                                       <>
                                                           <Text className="font-bold text-white text-xs text-center leading-none">
                                                                {"Mode: " + originalSchedule.lightType}
@@ -233,39 +294,39 @@ const Schedule = () => {
                                                                {"Brightness: " + originalSchedule.brightness}%
                                                            </Text>
                                                       </>
-                                                  )}
-                                                  {/* For shorter segments (15-29 mins), maybe just show type */}
-                                                   {segmentDurationMinutes >= 15 && segmentDurationMinutes < 30 && (
+                                                  ) : null }
+                                                   {segmentDurationMinutes >= 15 && segmentDurationMinutes < 30 ? (
                                                        <Text className="font-bold text-white text-xs leading-none">
                                                             {originalSchedule.lightType.charAt(0).toUpperCase()}
                                                        </Text>
-                                                   )}
-                                                    {/* For very short segments (< 15 mins), maybe show nothing or a tiny marker */}
-                                                     {/* Currently shows nothing */}
+                                                   ) : null}
                                             </TouchableOpacity>
                                         );
                                     }
-                                    return null; 
+                                    return null;
                                 })}
 
-                                <View className="absolute bg-gray-600 w-px" style={{ left: '50%', top: 0, bottom: 0 }} /> {/* Half-hour line */}
+                                 {/* Half-hour marker */}
+                                  <View className="absolute bg-gray-600 w-px" style={{ left: '50%', top: 0, bottom: 0 }} />
 
-                        </View> 
+                        </View>
                     ))}
-
                 </ScrollView>
-            </View>
+            </View> {/* End of Calendar Scrollable Area Wrapper View */}
 
 
             {/* "Add Config" Button */}
             <TouchableOpacity
-                className="items-center bg-green-500 mx-5 my-4 p-4 rounded-lg" // Added my-4 for margin
+                className="items-center bg-accent mx-5 my-4 p-4 rounded-lg"
                 onPress={handleAddConfig} // This handler will show the modal
             >
                 <Text className="font-semibold text-white text-lg">Add New Schedule</Text>
             </TouchableOpacity>
 
-            <ScrollView className="flex-1 mt-4 px-5">
+
+             {/* Display List of Schedules (Uncommented by user) */}
+             {/* Now maps over the 'schedules' state */}
+             <ScrollView className="flex-1 mt-4 px-5">
                  <Text className="mb-2 font-bold text-white text-xl">Existing Schedules:</Text>
                   {schedules.length === 0 ? (
                       <Text className="text-gray-400">No schedules added yet.</Text>
@@ -279,42 +340,45 @@ const Schedule = () => {
                                </View>
                                 {/* Delete Button */}
                                 <TouchableOpacity onPress={() => handleDeleteSchedule(schedule.id)} className="bg-red-500 p-2 rounded-md">
-                                     <Text className="text-white text-xs">Delete</Text>
+                                     <Text className="text-white text-xs">Remove</Text>
                                 </TouchableOpacity>
                            </View>
                        ))
                   )}
               </ScrollView>
 
+
+            {/* The Add Schedule Modal */}
             <AddScheduleModal
-                isVisible={isModalVisible} // Control modal visibility using state
-                onClose={() => setIsModalVisible(false)} // Close modal handler
-                onAddSchedule={handleAddSchedule} // Handler when modal's Add button is pressed
-                availableDevices={availableDevices} // Pass the list of devices to the modal's picker
-                selectedDeviceId={defaultSelectedDeviceId} // Pass the default selected device
+                isVisible={isModalVisible}
+                onClose={() => setIsModalVisible(false)}
+                onAddSchedule={handleAddSchedule}
+                availableDevices={availableDevices}
+                selectedDeviceId={defaultSelectedDeviceId}
             />
 
         </View>
     );
 };
 
+// Basic StyleSheet for layout elements not easily done with NativeWind
 const styles = StyleSheet.create({
     calendarContentContainer: {
-        flexDirection: 'row', // Arrange hour slots horizontally
-        alignItems: 'stretch', // Make hour slots fill the height of the ScrollView
-        paddingVertical: 10, // Padding above and below the hour slots
-        paddingHorizontal: 10, // Padding at the very left and right ends of the scrollable area
+        flexDirection: 'row',
+        alignItems: 'stretch',
+        paddingVertical: 10,
+         paddingHorizontal: 10,
     },
     hourSlot: {
-        height: 200, // Fixed height for each hour slot
-        borderWidth: 1, // Add borders to create the grid cells
-        borderColor: '#374151', // Use a dark gray color
-        borderLeftWidth: 0, // Remove the left border to create continuous vertical lines
-        justifyContent: 'flex-start', // Align hour label to the top
-        alignItems: 'center', // Center hour label horizontally
-        paddingTop: 4, // Padding at the top inside the slot for the label
-        position: 'relative', // Important: This makes the hour slot the positioning context for absolute children (schedule blocks)
-        overflow: 'hidden', 
+        height: 200, // User-defined height
+        borderWidth: 1,
+        borderColor: '#374151',
+        borderLeftWidth: 0,
+        justifyContent: 'flex-start',
+        alignItems: 'center',
+        paddingTop: 4,
+        position: 'relative',
+        overflow: 'hidden',
     },
      firstHourSlot: {
          borderLeftWidth: 1,
