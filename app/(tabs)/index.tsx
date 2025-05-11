@@ -13,30 +13,42 @@ export default function Index() {
   // List of potential ESP32 IP addresses - Add your devices here!
   const availableDevices = [
       '192.168.101.101', 
+      '192.168.101.102', 
+      '192.168.101.103', 
+      '192.168.101.104', 
+      '192.168.101.105', 
+      '192.168.101.106', 
+      '192.168.101.107', 
+      '192.168.101.108', 
   ];
 
   // State for the currently selected ESP32 IP Address
   // Initialize with the first device in the list, or a default/saved value
   const [esp32IpAddress, setEsp32IpAddress] = useState(availableDevices.length > 0 ? availableDevices[0] : 'YOUR_ESP32_IP_ADDRESS');
 
-
+2
   // State to manage the currently selected light mode (optional, but helpful for UI)
   const [lightMode, setLightMode] = useState<'off' | 'warm' | 'natural' | 'both'>('off'); // Updated type to include 'both' for clarity
 
 
   // State to hold brightness values (0-100)
-  const [warmBrightness, setWarmBrightness] = useState(50);
-  const [naturalBrightness, setNaturalBrightness] = useState(50);
+  const [warmBrightness, setWarmBrightness] = useState(100);
+  const [naturalBrightness, setNaturalBrightness] = useState(100);
 
   // State to indicate if an API call is in progress (optional feedback)
   const [loading, setLoading] = useState(false);
 
-   // --- Effect to set initial IP if list is not empty ---
-   useEffect(() => {
-       if (availableDevices.length > 0 && esp32IpAddress === 'YOUR_ESP32_IP_ADDRESS') {
-           setEsp32IpAddress(availableDevices[0]);
-       }
-   }, []); // Run once on mount
+  useEffect(() => {
+    if (warmBrightness >= 1 && naturalBrightness >= 1) {
+      setLightMode('both');
+    } else if (warmBrightness >= 1) {
+      setLightMode('warm');
+    } else if (naturalBrightness >= 1) {
+      setLightMode('natural');
+    } else {
+      setLightMode('off')
+    }
+  }, [warmBrightness, naturalBrightness])
 
 
   // --- API Call Function ---
@@ -72,23 +84,21 @@ export default function Index() {
   // --- Button Handlers (Using your original separate ON/OFF/ALL OFF structure) ---
 
   const sendWarmOn = () => {
-    setLightMode('warm');
     sendApiCommand('/warm/on');
+    setWarmBrightness(100);
   };
 
   const sendWarmOff = () => {
-    setLightMode('off'); // Setting mode to off when Warm OFF is pressed
     setWarmBrightness(0); // Update slider position immediately
     sendApiCommand('/warm/brightness?level=0'); // Use brightness=0 for OFF
   };
 
    const sendNaturalOn = () => {
-    setLightMode('natural');
     sendApiCommand('/natural/on');
+    setNaturalBrightness(100);
   };
 
   const sendNaturalOff = () => {
-    setLightMode('off'); // Setting mode to off when Natural OFF is pressed
     setNaturalBrightness(0); // Update slider position immediately
     sendApiCommand('/natural/brightness?level=0');
   };
@@ -195,31 +205,17 @@ export default function Index() {
 
             {/* ON Buttons Container - Your original buttons */}
              <View className="flex-row justify-around mb-4">
-                <TouchableOpacity
-                    className="flex-1 items-center bg-orange-500 mx-1 p-4 rounded-lg"
-                    onPress={sendWarmOn}>
-                    <Text className="font-semibold text-white text-lg">Warm ON</Text>
-                </TouchableOpacity>
+               <TouchableOpacity
+                    className="flex-1 items-center bg-orange-500 mx-1 p-4 rounded-lg"
+                    onPress={warmBrightness > 0 ? sendWarmOff : sendWarmOn}> 
+                    <Text className="font-semibold text-white text-lg">{warmBrightness > 0 ? 'Warm Off' : 'Warm On'}</Text>
+                </TouchableOpacity>
 
                  <TouchableOpacity
-                    className="flex-1 items-center bg-gray-300 mx-1 p-4 rounded-lg"
-                    onPress={sendNaturalOn}>
-                    <Text className="font-semibold text-black text-lg">Natural ON</Text>
-                </TouchableOpacity>
-             </View>
-
-             {/* OFF Buttons Container - Your original buttons */}
-             <View className="flex-row justify-around mb-8">
-                 <TouchableOpacity
-                    className="flex-1 items-center bg-orange-500 mx-1 p-3 rounded-lg" // Removed border for simplicity
-                    onPress={sendWarmOff}>
-                    <Text className="text-white text-base">Warm OFF</Text>
-                </TouchableOpacity>
-                 <TouchableOpacity
-                    className="flex-1 items-center bg-gray-300 mx-1 p-3 border border-gray-500 rounded-lg"
-                    onPress={sendNaturalOff}>
-                    <Text className="text-black text-base">Natural OFF</Text>
-                </TouchableOpacity>
+                    className="flex-1 items-center bg-neutral-500 mx-1 p-4 rounded-lg"
+                    onPress={naturalBrightness > 0 ? sendNaturalOff : sendNaturalOn}> 
+                    <Text className="font-semibold text-white text-lg">{naturalBrightness > 0 ? 'Natural Off' : 'Natural On'}</Text>
+                </TouchableOpacity>
              </View>
 
               <View className="flex-row justify-around mb-8">
