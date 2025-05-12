@@ -26,10 +26,8 @@ export default function Index() {
   // Initialize with the first device in the list, or a default/saved value
   const [esp32IpAddress, setEsp32IpAddress] = useState(availableDevices.length > 0 ? availableDevices[0] : 'YOUR_ESP32_IP_ADDRESS');
 
-2
   // State to manage the currently selected light mode (optional, but helpful for UI)
   const [lightMode, setLightMode] = useState<'off' | 'warm' | 'natural' | 'both'>('off'); // Updated type to include 'both' for clarity
-
 
   // State to hold brightness values (0-100)
   const [warmBrightness, setWarmBrightness] = useState(100);
@@ -207,14 +205,12 @@ export default function Index() {
              <View className="flex-row justify-around mb-4">
                <TouchableOpacity
                     className="flex-1 items-center bg-orange-500 mx-1 p-4 rounded-lg"
-                    onPress={warmBrightness > 0 ? sendWarmOff : sendWarmOn}> 
-                    <Text className="font-semibold text-white text-lg">{warmBrightness > 0 ? 'Warm Off' : 'Warm On'}</Text>
+                    onPress={warmBrightness > 0 ? sendWarmOff : sendWarmOn}><Text className="font-semibold text-white text-lg">{warmBrightness > 0 ? 'Warm Off' : 'Warm On'}</Text>
                 </TouchableOpacity>
 
                  <TouchableOpacity
                     className="flex-1 items-center bg-neutral-500 mx-1 p-4 rounded-lg"
-                    onPress={naturalBrightness > 0 ? sendNaturalOff : sendNaturalOn}> 
-                    <Text className="font-semibold text-white text-lg">{naturalBrightness > 0 ? 'Natural Off' : 'Natural On'}</Text>
+                    onPress={naturalBrightness > 0 ? sendNaturalOff : sendNaturalOn}><Text className="font-semibold text-white text-lg">{naturalBrightness > 0 ? 'Natural Off' : 'Natural On'}</Text>
                 </TouchableOpacity>
              </View>
 
@@ -222,8 +218,7 @@ export default function Index() {
                 {/* Dedicated ALL OFF button - Your original button */}
                  <TouchableOpacity
                     className="flex-1 items-center bg-red-500 mx-1 p-3 rounded-lg"
-                    onPress={handleAllOff}>
-                    <Text className="font-semibold text-white text-base">TURN OFF</Text>
+                    onPress={handleAllOff}><Text className="font-semibold text-white text-base">TURN OFF</Text>
                 </TouchableOpacity>
              </View>
 

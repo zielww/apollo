@@ -144,7 +144,7 @@ const AddScheduleModal: React.FC<AddScheduleModalProps> = ({
             onRequestClose={onClose} // Handle hardware back button on Android
         >
             <View style={styles.modalOverlay} className='m-4 p-4'> {/* Semi-transparent background */}
-                <View className="gap-4 bg-primary m-4 p-20 rounded-lg w-full"> {/* Modal content container */}
+                <View className="space-x-4 bg-primary m-4 p-20 rounded-lg w-full"> {/* Modal content container */}
                     <Text className="my-4 font-bold text-white text-3xl text-center">
                         Add a Schedule
                     </Text>
@@ -154,21 +154,15 @@ const AddScheduleModal: React.FC<AddScheduleModalProps> = ({
                     <View className="flex-row justify-around mb-4">
                         <TouchableOpacity
                             className={getLightButtonClass('warm')}
-                            onPress={() => handleLightTypeSelect('warm')}
-                        >
-                             <Text className={getLightButtonTextClass('warm')}>Warm</Text>
+                            onPress={() => handleLightTypeSelect('warm')}><Text className={getLightButtonTextClass('warm')}>Warm</Text>
                         </TouchableOpacity>
                          <TouchableOpacity
                             className={getLightButtonClass('natural')}
-                            onPress={() => handleLightTypeSelect('natural')}
-                        >
-                             <Text className={getLightButtonTextClass('natural')}>Natural</Text>
+                            onPress={() => handleLightTypeSelect('natural')}><Text className={getLightButtonTextClass('natural')}>Natural</Text>
                         </TouchableOpacity>
                          <TouchableOpacity
                             className={getLightButtonClass('both')}
-                            onPress={() => handleLightTypeSelect('both')}
-                        >
-                             <Text className={getLightButtonTextClass('both')}>Both</Text>
+                            onPress={() => handleLightTypeSelect('both')}><Text className={getLightButtonTextClass('both')}>Both</Text>
                         </TouchableOpacity>
                     </View>
 
@@ -198,8 +192,7 @@ const AddScheduleModal: React.FC<AddScheduleModalProps> = ({
                         {/* Start Time */}
                         <View className="flex-1 mr-2">
                              <Text className="mb-1 text-white text-base">Start Time:</Text>
-                             <TouchableOpacity onPress={() => setShowStartTimePicker(true)} className="items-center bg-white p-3 border border-gray-500 rounded-lg">
-                                 <Text className="text-white text-base">{formatTime(startTime)}</Text>
+                             <TouchableOpacity onPress={() => setShowStartTimePicker(true)} className="items-center bg-white p-3 border border-gray-500 rounded-lg"><Text className="text-white text-base">{formatTime(startTime)}</Text>
                              </TouchableOpacity>
                              {showStartTimePicker ? (
                                  <DateTimePicker
@@ -208,6 +201,8 @@ const AddScheduleModal: React.FC<AddScheduleModalProps> = ({
                                      is24Hour={true} // Use 24-hour format
                                      display={Platform.OS === 'ios' ? 'spinner' : 'default'} // 'spinner' on iOS, 'default' on Android
                                      onChange={(event, date) => handleDateChange(event, date, 'start')}
+                                     themeVariant="light" // Use light theme for white text
+                                     textColor="white" // For Android
                                  />
                              ) : null}
                         </View>
@@ -215,16 +210,17 @@ const AddScheduleModal: React.FC<AddScheduleModalProps> = ({
                         {/* End Time */}
                          <View className="flex-1 ml-2">
                              <Text className="mb-1 text-white text-base">End Time:</Text>
-                             <TouchableOpacity onPress={() => setShowEndTimePicker(true)} className="items-center bg-white p-3 border border-gray-500 rounded-lg">
-                                 <Text className="text-white text-base">{formatTime(endTime)}</Text>
+                             <TouchableOpacity onPress={() => setShowEndTimePicker(true)} className="items-center  bg-white p-3 border border-gray-500 rounded-lg"><Text className="text-white text-base">{formatTime(endTime)}</Text>
                              </TouchableOpacity>
                               {showEndTimePicker ? (
                                  <DateTimePicker
                                      value={endTime}
                                      mode="time"
                                      is24Hour={true}
-                                      display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                                     display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                                      onChange={(event, date) => handleDateChange(event, date, 'end')}
+                                     themeVariant="light" // Use light theme for white text
+                                     textColor="white" // For Android
                                  />
                              ): null }
                          </View>
@@ -235,15 +231,11 @@ const AddScheduleModal: React.FC<AddScheduleModalProps> = ({
                     <View className="flex-row justify-around mt-4">
                          <TouchableOpacity
                             className="flex-1 items-center bg-gray-400 mx-1 p-3 rounded-lg"
-                            onPress={onClose} // Close button uses the onClose prop
-                         >
-                            <Text className="font-semibold text-white text-lg">Cancel</Text>
+                            onPress={onClose}><Text className="font-semibold text-white text-lg">Cancel</Text>
                          </TouchableOpacity>
                          <TouchableOpacity
                             className="flex-1 items-center bg-accent mx-1 p-3 rounded-lg"
-                            onPress={handleAddPress} // Add button uses the handleAddPress handler
-                         >
-                            <Text className="font-semibold text-white text-lg">Add</Text>
+                            onPress={handleAddPress}><Text className="font-semibold text-white text-lg">Add</Text>
                          </TouchableOpacity>
                     </View>
 

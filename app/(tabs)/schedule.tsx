@@ -1,13 +1,13 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'; // Import AsyncStorage
 import React, { useEffect, useState } from 'react'; // Import useState and useEffect
 import {
-  Alert,
-  Dimensions,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View
+    Alert,
+    Dimensions,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 // import { router } from 'expo-router';
@@ -18,6 +18,8 @@ const { width: screenWidth } = Dimensions.get('window');
 const HOUR_SLOT_WIDTH = 80;
 const ASYNC_STORAGE_KEY = '@smart_lighting_schedules'; // Define a key for AsyncStorage
 
+// API endpoint for the ESP32
+const ESP32_API_URL = 'http://192.168.101.102'; // CHANGE THIS TO YOUR ESP32 IP
 
 interface ScheduleItem {
     id: number;
@@ -40,10 +42,9 @@ const Schedule = () => {
 
     // --- Device List (Keep as is for now) ---
     const availableDevices = [
-        '192.168.101.101',
-        '192.168.1.150',
-        '192.168.1.151',
+        ESP32_API_URL,
     ];
+
     const defaultSelectedDeviceId = availableDevices.length > 0 ? availableDevices[0] : 'YOUR_ESP32_IP_ADDRESS';
 
 
@@ -91,6 +92,48 @@ const Schedule = () => {
         } catch (e) {
             console.error('Failed to load schedules from AsyncStorage:', e);
             Alert.alert('Error', 'Failed to load schedules.');
+        }
+    };
+
+    // --- ESP32 Sync Functions ---
+    
+    // Function to send schedules to the ESP32
+    const syncSchedulesToESP32 = async (schedulesToSync: ScheduleItem[]) => {
+        try {
+            // Convert Date objects to strings for serialization
+            const serializedSchedules = schedulesToSync.map(schedule => ({
+                ...schedule,
+                startTime: schedule.startTime.toISOString(),
+                endTime: schedule.endTime.toISOString()
+            }));
+
+            console.log('Syncing schedules to ESP32:', serializedSchedules);
+
+            // Send the schedules to the ESP32 via POST request
+            const response = await fetch(`${ESP32_API_URL}/set_schedule`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(serializedSchedules),
+            });
+
+            if (response.ok) {
+                console.log('Schedules successfully synced to ESP32');
+                return true;
+            } else {
+                const errorText = await response.text();
+                console.error('Failed to sync schedules to ESP32:', errorText);
+                return false;
+            }
+        } catch (error) {
+            console.error('Error syncing schedules to ESP32:', error);
+            Alert.alert(
+                'Sync Error',
+                'Failed to sync schedules to the ESP32. Check your connection and try again.',
+                [{ text: 'OK' }]
+            );
+            return false;
         }
     };
 
@@ -176,12 +219,12 @@ const Schedule = () => {
           return {
               schedule, // Original schedule item
               style: {
-                  position: 'absolute', // Position absolutely within the hour slot
-                  left: `${left}%`,       // Position from the left as a percentage
-                  width: `${width}%`,     // Width as a percentage of the hour slot
-                  height: '80%',        // Fixed height for the schedule block
-                  top: '10%',           // Center vertically within the slot
-                  borderRadius: 4,      // Rounded corners
+                  position: 'absolute' as 'absolute',
+                  left: `${left}%` as `${string}%`,
+                  width: `${width}%` as `${string}%`,
+                  height: '80%' as `${string}%`,
+                  top: '10%' as `${string}%`,
+                  borderRadius: 4,
               },
               className: `${bgColorClass}`, // Background color class
               segmentDurationMinutes, // Return duration for conditional text rendering
@@ -206,10 +249,12 @@ const Schedule = () => {
         setSchedules(prevSchedules => {
             const updatedSchedules = [...prevSchedules, scheduleWithId];
             saveSchedules(updatedSchedules); // Save the updated list to AsyncStorage
+            // Sync to ESP32 after saving to AsyncStorage
+            syncSchedulesToESP32(updatedSchedules).catch(err => 
+                console.error('Error during ESP32 sync after add:', err)
+            );
             return updatedSchedules;
         });
-
-        // TODO: You would also likely send this schedule to the ESP32/Backend here or via a separate sync process
     };
 
      // Handler to delete a schedule
@@ -223,10 +268,13 @@ const Schedule = () => {
                      setSchedules(prevSchedules => {
                         const updatedSchedules = prevSchedules.filter(sched => sched.id !== id);
                         saveSchedules(updatedSchedules); // Save the updated list to AsyncStorage
+                        // Sync to ESP32 after saving to AsyncStorage
+                        syncSchedulesToESP32(updatedSchedules).catch(err => 
+                            console.error('Error during ESP32 sync after delete:', err)
+                        );
                         return updatedSchedules;
                      });
                      console.log(`Deleted schedule with ID: ${id}`);
-                      // TODO: Notify ESP32/Backend about deletion
                  }}
              ]
          );
@@ -237,6 +285,7 @@ const Schedule = () => {
           console.log("Edit schedule pressed:", schedule);
           // TODO: Implement Edit Modal/Form: Open the modal, pre-fill with schedule data, and change "Add" to "Save"
           // You'll need to pass the schedule object and a different onSave handler
+          // Don't forget to add syncSchedulesToESP32 here when implemented
      };
 
 
