@@ -22,8 +22,8 @@ export default function Index() {
   const [lightMode, setLightMode] = useState<'off' | 'warm' | 'natural' | 'both'>('off'); // Updated type to include 'both' for clarity
 
   // State to hold brightness values (0-100)
-  const [warmBrightness, setWarmBrightness] = useState(100);
-  const [naturalBrightness, setNaturalBrightness] = useState(100);
+  const [warmBrightness, setWarmBrightness] = useState(0);
+  const [naturalBrightness, setNaturalBrightness] = useState(0);
 
   // State to indicate if an API call is in progress (optional feedback)
   const [loading, setLoading] = useState(false);
