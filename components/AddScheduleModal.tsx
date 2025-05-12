@@ -5,6 +5,7 @@ import { Alert, Modal, Platform, StyleSheet, Text, TouchableOpacity, View } from
 
 type LightType = 'warm' | 'natural' | 'both';
 
+// Interface for stricter checks
 interface Schedule {
     id: number;
     lightType: LightType;
@@ -26,7 +27,7 @@ interface AddScheduleModalProps {
     }) => void;
     availableDevices: string[]; 
     selectedDeviceId: string;
-    existingSchedules: Schedule[]; // Add existing schedules to check for overlaps
+    existingSchedules: Schedule[]; 
 }
 
 const AddScheduleModal: React.FC<AddScheduleModalProps> = ({
@@ -35,12 +36,11 @@ const AddScheduleModal: React.FC<AddScheduleModalProps> = ({
     onAddSchedule,
     availableDevices,
     selectedDeviceId,
-    existingSchedules, // Add this prop
+    existingSchedules, 
 }) => {
     // --- Form State ---
-    const [selectedLightType, setSelectedLightType] = useState<LightType>('both'); // Default to 'both'
-    const [brightness, setBrightness] = useState(100); // Default brightness
-    // Initialize times to something reasonable, e.g., next hour for start, and 1 hour after for end
+    const [selectedLightType, setSelectedLightType] = useState<LightType>('both'); 
+    const [brightness, setBrightness] = useState(100);
     const now = new Date();
     const defaultStartTime = new Date(now.getTime() + 60 * 60 * 1000); // 1 hour from now
     defaultStartTime.setMinutes(0, 0, 0); // Round to the nearest hour
@@ -54,15 +54,14 @@ const AddScheduleModal: React.FC<AddScheduleModalProps> = ({
     const [showEndTimePicker, setShowEndTimePicker] = useState(false);
 
     // State for device selection within the modal
-    const [scheduleDeviceId, setScheduleDeviceId] = useState(selectedDeviceId); // Default to the currently selected device
+    const [scheduleDeviceId, setScheduleDeviceId] = useState(selectedDeviceId); 
 
 
     // --- Handlers ---
 
     const handleLightTypeSelect = (type: LightType) => {
         setSelectedLightType(type);
-        // Reset brightness or keep it based on preference when switching type
-        setBrightness(100); // Reset to 100% on type change
+        setBrightness(100); 
     };
 
     const handleBrightnessChange = (value: number) => {
@@ -70,9 +69,6 @@ const AddScheduleModal: React.FC<AddScheduleModalProps> = ({
     };
 
     const handleDateChange = (event: any, selectedDate: Date | undefined, type: 'start' | 'end') => {
-        // On Android, the picker is dismissed after selection, event.type is 'set' or 'dismissed'
-        // On iOS, the picker remains open, event.type is 'set' continuously as user scrolls, 'dismissed' when done button pressed
-        // Check event.type to handle dismissal on iOS, or rely on modal closing
          if (event.type === 'dismissed') {
              if (type === 'start') setShowStartTimePicker(false);
              else setShowEndTimePicker(false);
@@ -84,24 +80,21 @@ const AddScheduleModal: React.FC<AddScheduleModalProps> = ({
 
         if (type === 'start') {
              setStartTime(currentDate);
-             if (Platform.OS === 'android') setShowStartTimePicker(false); // Close android picker
+             if (Platform.OS === 'android') setShowStartTimePicker(false); 
         } else {
             setEndTime(currentDate);
-             if (Platform.OS === 'android') setShowEndTimePicker(false); // Close android picker
+             if (Platform.OS === 'android') setShowEndTimePicker(false); 
         }
-         // iOS picker remains open, will close when modal closes or user taps Done/outside depending on display mode
     };
 
     // Helper function to check for overlapping schedules
     const checkForOverlaps = (start: Date, end: Date, deviceId: string): boolean => {
-        // Convert start and end to minutes since midnight for easier comparison
         const startMinutes = start.getHours() * 60 + start.getMinutes();
         const endMinutes = end.getHours() * 60 + end.getMinutes();
         
         // Loop through existing schedules and check for overlaps
         for (const schedule of existingSchedules) {
             if (schedule.deviceId !== deviceId) {
-                // If devices are different, no overlap concerns (different physical devices)
                 continue;
             }
             
@@ -110,7 +103,6 @@ const AddScheduleModal: React.FC<AddScheduleModalProps> = ({
             const scheduleEndMinutes = schedule.endTime.getHours() * 60 + schedule.endTime.getMinutes();
             
             // Check for overlap
-            // Handle case when schedule spans across midnight
             let overlap = false;
             
             if (scheduleEndMinutes < scheduleStartMinutes) {
@@ -166,7 +158,6 @@ const AddScheduleModal: React.FC<AddScheduleModalProps> = ({
 
         // Check for overlapping schedules
         if (checkForOverlaps(startTime, endTime, scheduleDeviceId)) {
-            // If overlaps exist, checkForOverlaps will show an alert and return true
              return;
          }
 
@@ -175,12 +166,12 @@ const AddScheduleModal: React.FC<AddScheduleModalProps> = ({
             brightness: brightness,
             startTime: startTime,
             endTime: endTime,
-            deviceId: scheduleDeviceId, // Include the selected device ID
+            deviceId: scheduleDeviceId, 
         };
 
         console.log("Adding schedule:", newSchedule);
-        onAddSchedule(newSchedule); // Call the parent's function to add the schedule
-        onClose(); // Close the modal
+        onAddSchedule(newSchedule); 
+        onClose(); 
     };
 
     // Helper to format Date object to HH:MM string
@@ -193,31 +184,29 @@ const AddScheduleModal: React.FC<AddScheduleModalProps> = ({
      // Helper for conditional button styling (light type selection)
      const getLightButtonClass = (type: LightType) => {
          const baseClasses = "p-3 rounded-lg flex-1 mx-1 items-center";
-         // Example coloring based on selection (using Tailwind classes)
          if (selectedLightType === type) {
              if (type === 'warm') return `${baseClasses} bg-accent`;
              if (type === 'natural') return `${baseClasses} bg-accent`;
              if (type === 'both') return `${baseClasses} bg-accent`;
          }
          // Default inactive style
-         return `${baseClasses} bg-gray-400`; // Use a neutral background for inactive
+         return `${baseClasses} bg-gray-400`; 
      };
 
       const getLightButtonTextClass = (type: LightType) => {
-           // Using text-white for selected, text-black or text-primary for unselected
-           return selectedLightType === type ? "text-white font-bold" : "text-white"; // Use text-gray-800 or text-primary
+           return selectedLightType === type ? "text-white font-bold" : "text-white"; 
       };
 
 
     return (
         <Modal
-            animationType="slide" // or "fade" or "none"
+            animationType="slide" 
             transparent={true}
             visible={isVisible}
-            onRequestClose={onClose} // Handle hardware back button on Android
+            onRequestClose={onClose} 
         >
-            <View style={styles.modalOverlay} className='m-4 p-4'> {/* Semi-transparent background */}
-                <View className="space-x-4 bg-primary m-4 p-20 rounded-lg w-full"> {/* Modal content container */}
+            <View style={styles.modalOverlay} className='m-4 p-4'> 
+                <View className="space-x-4 bg-primary m-4 p-20 rounded-lg w-full"> 
                     <Text className="my-4 font-bold text-white text-3xl text-center">
                         Add a Schedule
                     </Text>
@@ -240,8 +229,7 @@ const AddScheduleModal: React.FC<AddScheduleModalProps> = ({
                     </View>
 
                     {/* Brightness Slider (appears dynamically) */}
-                    {/* Show slider if 'Warm', 'Natural', or 'Both' is selected */}
-                    {(selectedLightType !== null) ? ( // Could also explicitly check 'warm' | 'natural' | 'both'
+                    {(selectedLightType !== null) ? ( 
                         <View className="mb-4">
                             <Text className="mb-2 font-semibold text-white text-lg">
                                 Brightness ({brightness}%)
@@ -252,9 +240,9 @@ const AddScheduleModal: React.FC<AddScheduleModalProps> = ({
                                 maximumValue={100}
                                 value={brightness}
                                 onValueChange={handleBrightnessChange}
-                                minimumTrackTintColor="#AB8BFF" // Example color
-                                maximumTrackTintColor="#ffffff" // Example color
-                                thumbTintColor="#AB8BFF" // Example color
+                                minimumTrackTintColor="#AB8BFF" 
+                                maximumTrackTintColor="#ffffff" 
+                                thumbTintColor="#AB8BFF" 
                             />
                         </View>
                     ): null}
@@ -271,11 +259,11 @@ const AddScheduleModal: React.FC<AddScheduleModalProps> = ({
                                  <DateTimePicker
                                      value={startTime}
                                      mode="time"
-                                     is24Hour={true} // Use 24-hour format
-                                     display={Platform.OS === 'ios' ? 'spinner' : 'default'} // 'spinner' on iOS, 'default' on Android
+                                     is24Hour={true} 
+                                     display={Platform.OS === 'ios' ? 'spinner' : 'default'} 
                                      onChange={(event, date) => handleDateChange(event, date, 'start')}
-                                     themeVariant="light" // Use light theme for white text
-                                     textColor="white" // For Android
+                                     themeVariant="light" 
+                                     textColor="white" 
                                  />
                              ) : null}
                         </View>
@@ -283,7 +271,7 @@ const AddScheduleModal: React.FC<AddScheduleModalProps> = ({
                         {/* End Time */}
                          <View className="flex-1 ml-2">
                              <Text className="mb-1 text-white text-base">End Time:</Text>
-                             <TouchableOpacity onPress={() => setShowEndTimePicker(true)} className="items-center  bg-white p-3 border border-gray-500 rounded-lg"><Text className="text-neutral-800 text-base">{formatTime(endTime)}</Text>
+                             <TouchableOpacity onPress={() => setShowEndTimePicker(true)} className="items-center bg-white p-3 border border-gray-500 rounded-lg"><Text className="text-neutral-800 text-base">{formatTime(endTime)}</Text>
                              </TouchableOpacity>
                               {showEndTimePicker ? (
                                  <DateTimePicker
@@ -292,8 +280,8 @@ const AddScheduleModal: React.FC<AddScheduleModalProps> = ({
                                      is24Hour={true}
                                       display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                                      onChange={(event, date) => handleDateChange(event, date, 'end')}
-                                     themeVariant="light" // Use light theme for white text
-                                     textColor="white" // For Android
+                                     themeVariant="light" 
+                                     textColor="white" 
                                  />
                              ): null }
                          </View>
@@ -318,30 +306,29 @@ const AddScheduleModal: React.FC<AddScheduleModalProps> = ({
     );
 };
 
-// Stylesheet for modal overlay and elements not easily styled with NativeWind
 const styles = StyleSheet.create({
     modalOverlay: {
         flex: 1,
-        justifyContent: 'center', // Center modal vertically
-        alignItems: 'center',   // Center modal horizontally
-        backgroundColor: 'rgba(0, 0, 0, 0.5)', // Semi-transparent background
+        justifyContent: 'center', 
+        alignItems: 'center',   
+        backgroundColor: 'rgba(0, 0, 0, 0.5)', 
     },
      slider: {
-        width: '100%', // Slider width fills container
+        width: '100%', 
         height: 40,
     },
-     pickerContainer: { // Wrapper for styling the Picker
+     pickerContainer: { 
          backgroundColor: 'white',
          borderRadius: 8,
          overflow: 'hidden',
          borderWidth: 1,
-         borderColor: '#ffffff', // gray-300 equivalent
+         borderColor: '#ffffff', 
      },
-      picker: { // Picker text color (Android)
+      picker: { 
          width: '100%',
-         color: '#ffffff', // gray-800 equivalent
+         color: '#ffffff', 
       },
-      pickerItem: { // Picker item text color (iOS)
+      pickerItem: { 
          color: '#ffffff',
          fontSize: 16,
       }

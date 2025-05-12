@@ -21,6 +21,7 @@ const ESPDiscovery: React.FC<ESPDiscoveryProps> = ({ onDeviceFound }) => {
   const [connectionMode, setConnectionMode] = useState<'station' | 'ap' | 'unknown'>('unknown');
 
   // Firebase URL
+  // I hardcoded this bcuz its free anyways and its a hassle to create secrets in GitHub
   const firebaseUrl = "https://apollo-671a4-default-rtdb.asia-southeast1.firebasedatabase.app";
 
   useEffect(() => {
