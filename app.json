@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "IoT Smart Lighting App",
-    "slug": "argus_panoptes",
+    "name": "Apollo: Lighting App",
+    "slug": "apollo",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/logo.png",
-    "scheme": "movies",
+    "scheme": "lighting",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
