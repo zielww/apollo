@@ -124,16 +124,6 @@ export default function Index() {
     sendApiCommand('/natural/brightness?level=0');
   };
 
-  const handleAllOff = () => {
-      setLightMode('off');
-      setWarmBrightness(0); // Update sliders immediately
-      setNaturalBrightness(0);
-      // Send both off commands
-      sendApiCommand('/warm/brightness?level=0');
-      sendApiCommand('/natural/brightness?level=0');
-  };
-
-
   // Sliders update state immediately for smooth UI, API call on release
   const handleWarmBrightnessChange = (value: number) => {
     setWarmBrightness(Math.round(value));

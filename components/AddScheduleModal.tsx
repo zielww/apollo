@@ -167,8 +167,8 @@ const AddScheduleModal: React.FC<AddScheduleModalProps> = ({
         // Check for overlapping schedules
         if (checkForOverlaps(startTime, endTime, scheduleDeviceId)) {
             // If overlaps exist, checkForOverlaps will show an alert and return true
-            return;
-        }
+             return;
+         }
 
         const newSchedule = {
             lightType: selectedLightType,
@@ -290,7 +290,7 @@ const AddScheduleModal: React.FC<AddScheduleModalProps> = ({
                                      value={endTime}
                                      mode="time"
                                      is24Hour={true}
-                                     display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                                      display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                                      onChange={(event, date) => handleDateChange(event, date, 'end')}
                                      themeVariant="light" // Use light theme for white text
                                      textColor="white" // For Android

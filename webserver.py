@@ -50,16 +50,32 @@ time_synced = False
 # --- Schedules Store ---
 current_schedules = [] # Global list to store schedules
 
+# --- Manual Control State Variables ---
+last_manual_warm_brightness = 0  # Store last manual setting for warm LED
+last_manual_natural_brightness = 0  # Store last manual setting for natural LED
+
 # --- LED Control Functions ---
 
-def set_led_brightness(led_pwm, level):
+def set_led_brightness(led_pwm, level, is_from_schedule=False):
     """Sets the brightness of an LED using PWM for COMMON ANODE configuration."""
+    global last_manual_warm_brightness, last_manual_natural_brightness
+    
     if led_pwm is None:
         print("LED PWM not initialized.")
         return False
     try:
         # Ensure level is within 0-100 range
         level = max(0, min(100, int(level)))
+        
+        # Store manual setting for this LED if it's not from a schedule
+        if not is_from_schedule:
+            if led_pwm == warm_led_pwm:
+                last_manual_warm_brightness = level
+                print(f"Stored manual warm brightness: {level}%")
+            elif led_pwm == natural_led_pwm:
+                last_manual_natural_brightness = level
+                print(f"Stored manual natural brightness: {level}%")
+        
         # For COMMON ANODE, 0% brightness is MAX_DUTY, 100% brightness is 0 duty.
         # Invert the level: 0% brightness -> 100% inverted level
         #                 100% brightness -> 0% inverted level
@@ -72,21 +88,45 @@ def set_led_brightness(led_pwm, level):
         print(f"Invalid brightness level: {level}")
         return False
 
-def turn_led_on(led_pwm):
+def turn_led_on(led_pwm, is_from_schedule=False):
     """Turns an LED fully on (100% brightness) for COMMON ANODE configuration."""
+    global last_manual_warm_brightness, last_manual_natural_brightness
+    
     if led_pwm is None:
         print("LED PWM not initialized.")
         return False
+    
+    # Store manual setting for this LED if it's not from a schedule
+    if not is_from_schedule:
+        if led_pwm == warm_led_pwm:
+            last_manual_warm_brightness = 100
+            print("Stored manual warm brightness: 100%")
+        elif led_pwm == natural_led_pwm:
+            last_manual_natural_brightness = 100
+            print("Stored manual natural brightness: 100%")
+    
     # For COMMON ANODE, 100% brightness means 0V output, so duty cycle of 0.
     led_pwm.duty(0)
     print("Turned LED ON (100% - Common Anode).")
     return True
 
-def turn_led_off(led_pwm):
+def turn_led_off(led_pwm, is_from_schedule=False):
     """Turns an LED fully off (0% brightness) for COMMON ANODE configuration."""
+    global last_manual_warm_brightness, last_manual_natural_brightness
+    
     if led_pwm is None:
         print("LED PWM not initialized.")
         return False
+    
+    # Store manual setting for this LED if it's not from a schedule
+    if not is_from_schedule:
+        if led_pwm == warm_led_pwm:
+            last_manual_warm_brightness = 0
+            print("Stored manual warm brightness: 0%")
+        elif led_pwm == natural_led_pwm:
+            last_manual_natural_brightness = 0
+            print("Stored manual natural brightness: 0%")
+    
     # For COMMON ANODE, 0% brightness means 3.3V output, so duty cycle of PWM_MAX_DUTY.
     led_pwm.duty(PWM_MAX_DUTY)
     print("Turned LED OFF (0% - Common Anode).")
@@ -178,9 +218,12 @@ def sync_time():
     print("All NTP servers failed. Will retry later.")
     return False
 
-def format_time():
-    """Format the current time as a readable string."""
-    t = time.localtime()
+def format_time(timestamp=None):
+    """Format the current time or given timestamp as a readable string."""
+    if timestamp is None:
+        t = time.localtime()
+    else:
+        t = time.localtime(timestamp)
     return "{:04d}-{:02d}-{:02d} {:02d}:{:02d}:{:02d}".format(
         t[0], t[1], t[2], t[3], t[4], t[5]
     )
@@ -230,9 +273,9 @@ def check_and_apply_schedules():
     print(f"Current time is {current_minutes // 60}:{current_minutes % 60:02d} ({current_minutes} minutes since midnight)")
     
     # Track which LED types should be active based on schedules
-    warm_active = False
+    warm_schedule_active = False
     warm_brightness = 0
-    natural_active = False
+    natural_schedule_active = False
     natural_brightness = 0
     
     # Check each schedule
@@ -268,31 +311,35 @@ def check_and_apply_schedules():
                 brightness = int(schedule.get("brightness", 100))
                 
                 if light_type == "warm" or light_type == "both":
-                    warm_active = True
+                    warm_schedule_active = True
                     warm_brightness = max(warm_brightness, brightness)
                 
                 if light_type == "natural" or light_type == "both":
-                    natural_active = True
+                    natural_schedule_active = True
                     natural_brightness = max(natural_brightness, brightness)
         
         except Exception as e:
             print(f"Error processing schedule: {e}")
             continue
     
-    # Apply the LED states based on active schedules
-    if warm_active:
-        print(f"Setting warm LED to {warm_brightness}%")
-        set_led_brightness(warm_led_pwm, warm_brightness)
+    # Apply the LED states based on active schedules or manual settings
+    if warm_schedule_active:
+        # Schedule has priority - apply schedule settings
+        print(f"Setting warm LED to {warm_brightness}% (scheduled)")
+        set_led_brightness(warm_led_pwm, warm_brightness, is_from_schedule=True)
     else:
-        print("Turning warm LED off")
-        turn_led_off(warm_led_pwm)
+        # No schedule active - apply manual setting
+        print(f"No warm schedule active, using manual setting: {last_manual_warm_brightness}%")
+        set_led_brightness(warm_led_pwm, last_manual_warm_brightness, is_from_schedule=True)
     
-    if natural_active:
-        print(f"Setting natural LED to {natural_brightness}%")
-        set_led_brightness(natural_led_pwm, natural_brightness)
+    if natural_schedule_active:
+        # Schedule has priority - apply schedule settings
+        print(f"Setting natural LED to {natural_brightness}% (scheduled)")
+        set_led_brightness(natural_led_pwm, natural_brightness, is_from_schedule=True)
     else:
-        print("Turning natural LED off")
-        turn_led_off(natural_led_pwm)
+        # No schedule active - apply manual setting
+        print(f"No natural schedule active, using manual setting: {last_manual_natural_brightness}%")
+        set_led_brightness(natural_led_pwm, last_manual_natural_brightness, is_from_schedule=True)
 
 # --- HTTP Server Setup ---
 
@@ -321,7 +368,7 @@ def start_server(ip_address):
 
 def handle_request(client_socket):
     """Handles an incoming HTTP request."""
-    global current_schedules # Allow modification of the global variable
+    global current_schedules, last_manual_warm_brightness, last_manual_natural_brightness # Allow modification of the global variables
     try:
         request_bytes = client_socket.recv(2048) # Increased buffer size for potentially larger JSON payloads
         request_str = request_bytes.decode('utf-8')
@@ -433,6 +480,15 @@ def handle_request(client_socket):
                 response_body = ujson.dumps(status)
                 content_type = "application/json"
                 handled = True
+            elif path == "/manual/status":
+                # Endpoint to check current manual settings
+                status = {
+                    "warm_brightness": last_manual_warm_brightness,
+                    "natural_brightness": last_manual_natural_brightness
+                }
+                response_body = ujson.dumps(status)
+                content_type = "application/json"
+                handled = True
 
 
         elif method == 'POST':
@@ -475,6 +531,7 @@ def handle_request(client_socket):
                             save_schedules_to_file() # Save to flash for persistence
                             response_body = "Schedules updated successfully."
                             print(f"Received {len(current_schedules)} schedules.")
+                            
                             # Apply schedules immediately
                             check_and_apply_schedules()
                             handled = True
