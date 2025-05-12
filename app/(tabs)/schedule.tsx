@@ -39,6 +39,10 @@ const Schedule = () => {
     const [schedules, setSchedules] = useState<ScheduleItem[]>([]);
 
     const [esp32Address, setESP32Address] = useState<string | null>(null);
+    
+    // Add state for current time
+    const [currentTime, setCurrentTime] = useState(new Date());
+    const [calendarScrollViewRef, setCalendarScrollViewRef] = useState<ScrollView | null>(null);
 
     // --- Device List ---
     const availableDevices = esp32Address ? [esp32Address] : [];
@@ -162,9 +166,27 @@ const Schedule = () => {
         
         loadSavedESP32Address();
 
-        // Optional: Clean up function if needed (not strictly necessary for loading on mount)
-        // return () => { /* cleanup */ };
-    }, []); // Empty dependency array means this effect runs only once on mount
+        // Set up a timer to update current time every minute
+        const timeInterval = setInterval(() => {
+            const now = new Date();
+            setCurrentTime(now);
+            
+            // Scroll to current time if scroll view is available
+            if (calendarScrollViewRef) {
+                const currentHour = now.getHours();
+                // Scroll to current hour minus 2 (show a couple hours before current time)
+                const scrollToHour = Math.max(0, currentHour - 2);
+                calendarScrollViewRef.scrollTo({ x: scrollToHour * HOUR_SLOT_WIDTH, animated: true });
+            }
+        }, 60000); // Update every minute
+        
+        // Initial time set and scroll
+        const now = new Date();
+        setCurrentTime(now);
+        
+        // Clean up timer on unmount
+        return () => clearInterval(timeInterval);
+    }, [calendarScrollViewRef]); // Added calendarScrollViewRef as dependency
 
 
     // --- Helper functions (formatTime, getSegmentDetails - Keep as is) ---
@@ -309,6 +331,20 @@ const Schedule = () => {
           // Don't forget to add syncSchedulesToESP32 here when implemented
      };
 
+    // Helper function to get current time position for time indicator
+    const getCurrentTimePosition = () => {
+        const hours = currentTime.getHours();
+        const minutes = currentTime.getMinutes();
+        const minutesSinceMidnight = hours * 60 + minutes;
+        const hourWidth = HOUR_SLOT_WIDTH;
+        
+        // Calculate position as percentage through the day
+        const hourPosition = hours + (minutes / 60);
+        const position = hourPosition * hourWidth;
+        
+        return position;
+    };
+
     return (
         <View className="flex-1 bg-primary" style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}>
             
@@ -317,9 +353,15 @@ const Schedule = () => {
                 Schedule
             </Text>
 
+            {/* Current Time Display */}
+            <Text className="mb-2 font-semibold text-white text-lg text-center">
+                Current Time: {formatTime(currentTime)}
+            </Text>
+
             {/* 24-Hour Calendar Scroll View (Horizontal) */}
-            <View> {/* Wrapper View for the scrollable area */}
+            <View className="relative"> {/* Wrapper View for the scrollable area with relative positioning */}
                 <ScrollView
+                    ref={(ref) => setCalendarScrollViewRef(ref)}
                     horizontal // Horizontal scrolling
                     showsHorizontalScrollIndicator={false}
                     contentContainerStyle={styles.calendarContentContainer} // Style the content container
@@ -388,6 +430,30 @@ const Schedule = () => {
 
                         </View>
                     ))}
+
+                    {/* Current Time Indicator - Positioned absolutely over the ScrollView */}
+                    <View 
+                        style={{ 
+                            position: 'absolute',
+                            left: getCurrentTimePosition(),
+                            top: 0,
+                            bottom: 0,
+                            width: 2,
+                            backgroundColor: '#FF2D55',
+                            zIndex: 100
+                        }}
+                    >
+                        {/* Time indicator circle at top */}
+                        <View style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: -4,
+                            width: 10,
+                            height: 10,
+                            borderRadius: 5,
+                            backgroundColor: '#FF2D55',
+                        }} />
+                    </View>
                 </ScrollView>
             </View> {/* End of Calendar Scrollable Area Wrapper View */}
 
@@ -405,27 +471,28 @@ const Schedule = () => {
                 <ESPDiscovery onDeviceFound={handleDeviceFound} />
             </View>
 
-             {/* Display List of Schedules (Uncommented by user) */}
-             {/* Now maps over the 'schedules' state */}
-             <ScrollView className="flex-1 mt-4 px-5 overflow-auto">
-                 <Text className="mb-2 font-bold text-white text-xl">Existing Schedules:</Text>
-                  {schedules.length === 0 ? (
-                      <Text className="text-gray-400">No schedules added yet.</Text>
-                  ) : (
-                       schedules.map(schedule => (
-                           <View key={schedule.id} className="flex-row justify-between items-center bg-gray-700 mb-2 p-3 rounded-md">
-                               <View>
-                                   <Text className="font-semibold text-white text-base capitalize">{schedule.lightType}</Text>
-                                   <Text className="text-gray-300 text-sm">{formatTime(schedule.startTime)} - {formatTime(schedule.endTime)} ({schedule.brightness}%)</Text>
-                               </View>
-                                {/* Delete Button */}
-                                <TouchableOpacity onPress={() => handleDeleteSchedule(schedule.id)} className="bg-red-500 p-2 rounded-md">
-                                     <Text className="text-white text-xs">X</Text>
-                                </TouchableOpacity>
-                           </View>
-                       ))
-                  )}
-              </ScrollView>
+             {/* Display List of Schedules with proper scrolling */}
+             <View className="flex-1 mt-2 px-5">
+                <Text className="mb-2 font-bold text-white text-xl">Existing Schedules:</Text>
+                {schedules.length === 0 ? (
+                    <Text className="text-gray-400">No schedules added yet.</Text>
+                ) : (
+                    <ScrollView className="flex-1 overflow-auto">
+                        {schedules.map(schedule => (
+                            <View key={schedule.id} className="flex-row justify-between items-center bg-gray-700 mb-2 p-3 rounded-md">
+                                <View>
+                                    <Text className="font-semibold text-white text-base capitalize">{schedule.lightType}</Text>
+                                    <Text className="text-gray-300 text-sm">{formatTime(schedule.startTime)} - {formatTime(schedule.endTime)} ({schedule.brightness}%)</Text>
+                                </View>
+                                 {/* Delete Button */}
+                                 <TouchableOpacity onPress={() => handleDeleteSchedule(schedule.id)} className="bg-red-500 p-2 rounded-md">
+                                      <Text className="text-white text-xs">X</Text>
+                                 </TouchableOpacity>
+                            </View>
+                        ))}
+                    </ScrollView>
+                )}
+             </View>
 
 
             {/* The Add Schedule Modal */}
@@ -435,6 +502,7 @@ const Schedule = () => {
                 onAddSchedule={handleAddSchedule}
                 availableDevices={availableDevices}
                 selectedDeviceId={defaultSelectedDeviceId}
+                existingSchedules={schedules}
             />
 
         </View>

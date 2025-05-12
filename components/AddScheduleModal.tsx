@@ -5,6 +5,15 @@ import { Alert, Modal, Platform, StyleSheet, Text, TouchableOpacity, View } from
 
 type LightType = 'warm' | 'natural' | 'both';
 
+interface Schedule {
+    id: number;
+    lightType: LightType;
+    brightness: number;
+    startTime: Date;
+    endTime: Date;
+    deviceId: string;
+}
+
 interface AddScheduleModalProps {
     isVisible: boolean;
     onClose: () => void;
@@ -16,7 +25,8 @@ interface AddScheduleModalProps {
         deviceId: string;
     }) => void;
     availableDevices: string[]; 
-    selectedDeviceId: string; 
+    selectedDeviceId: string;
+    existingSchedules: Schedule[]; // Add existing schedules to check for overlaps
 }
 
 const AddScheduleModal: React.FC<AddScheduleModalProps> = ({
@@ -25,6 +35,7 @@ const AddScheduleModal: React.FC<AddScheduleModalProps> = ({
     onAddSchedule,
     availableDevices,
     selectedDeviceId,
+    existingSchedules, // Add this prop
 }) => {
     // --- Form State ---
     const [selectedLightType, setSelectedLightType] = useState<LightType>('both'); // Default to 'both'
@@ -81,6 +92,64 @@ const AddScheduleModal: React.FC<AddScheduleModalProps> = ({
          // iOS picker remains open, will close when modal closes or user taps Done/outside depending on display mode
     };
 
+    // Helper function to check for overlapping schedules
+    const checkForOverlaps = (start: Date, end: Date, deviceId: string): boolean => {
+        // Convert start and end to minutes since midnight for easier comparison
+        const startMinutes = start.getHours() * 60 + start.getMinutes();
+        const endMinutes = end.getHours() * 60 + end.getMinutes();
+        
+        // Loop through existing schedules and check for overlaps
+        for (const schedule of existingSchedules) {
+            if (schedule.deviceId !== deviceId) {
+                // If devices are different, no overlap concerns (different physical devices)
+                continue;
+            }
+            
+            // Convert schedule times to minutes since midnight
+            const scheduleStartMinutes = schedule.startTime.getHours() * 60 + schedule.startTime.getMinutes();
+            const scheduleEndMinutes = schedule.endTime.getHours() * 60 + schedule.endTime.getMinutes();
+            
+            // Check for overlap
+            // Handle case when schedule spans across midnight
+            let overlap = false;
+            
+            if (scheduleEndMinutes < scheduleStartMinutes) {
+                // Schedule spans midnight
+                if (
+                    // New schedule starts during existing schedule
+                    (startMinutes >= scheduleStartMinutes || startMinutes < scheduleEndMinutes) &&
+                    // New schedule ends during existing schedule
+                    (endMinutes > scheduleStartMinutes || endMinutes <= scheduleEndMinutes)
+                ) {
+                    overlap = true;
+                }
+            } else {
+                // Schedule within same day
+                if (
+                    // Check if start time is within the existing schedule range
+                    (startMinutes >= scheduleStartMinutes && startMinutes < scheduleEndMinutes) ||
+                    // Check if end time is within the existing schedule range
+                    (endMinutes > scheduleStartMinutes && endMinutes <= scheduleEndMinutes) ||
+                    // Check if the new schedule completely contains the existing schedule
+                    (startMinutes <= scheduleStartMinutes && endMinutes >= scheduleEndMinutes)
+                ) {
+                    overlap = true;
+                }
+            }
+            
+            if (overlap) {
+                const scheduleTimeString = `${String(schedule.startTime.getHours()).padStart(2, '0')}:${String(schedule.startTime.getMinutes()).padStart(2, '0')} - ${String(schedule.endTime.getHours()).padStart(2, '0')}:${String(schedule.endTime.getMinutes()).padStart(2, '0')}`;
+                Alert.alert(
+                    "Schedule Overlap",
+                    `This time range overlaps with an existing schedule (${scheduleTimeString}). Please choose a different time.`
+                );
+                return true;
+            }
+        }
+        
+        // No overlaps found
+        return false;
+    };
 
     const handleAddPress = () => {
         // Add validation (e.g., end time after start time)
@@ -94,6 +163,12 @@ const AddScheduleModal: React.FC<AddScheduleModalProps> = ({
              Alert.alert("Invalid Brightness", "Brightness must be between 0% and 100%.");
              return;
          }
+
+        // Check for overlapping schedules
+        if (checkForOverlaps(startTime, endTime, scheduleDeviceId)) {
+            // If overlaps exist, checkForOverlaps will show an alert and return true
+            return;
+        }
 
         const newSchedule = {
             lightType: selectedLightType,
