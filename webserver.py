@@ -6,6 +6,8 @@ import gc # Garbage collection
 import ujson # Import ujson for JSON parsing
 import ntptime # For time synchronization
 import utime
+import urequests
+import ubinascii
 
 # --- Wi-Fi Configuration ---
 WIFI_SSID = "Abita"          # <<<<<<<< CHANGE THIS
@@ -21,7 +23,7 @@ PWM_MAX_DUTY = 1023 # For ESP32's 10-bit PWM resolution
 
 # --- Schedule Configuration ---
 SCHEDULE_FILE = "schedules.json"  # File to store schedules
-CHECK_SCHEDULE_INTERVAL = 15      # Check schedules every 60 seconds
+CHECK_SCHEDULE_INTERVAL = 10      # Check schedules every 10 seconds (more frequent checks)
 TIME_SYNC_INTERVAL = 3600         # Sync time every hour (3600 seconds)
 
 # --- Initialize LEDs ---
@@ -41,6 +43,7 @@ except ValueError as e:
 # --- Time Tracking Variables ---
 last_schedule_check = 0
 last_time_sync = 0
+last_firebase_update = 0  # Add this new variable to track Firebase registration time
 time_synced = False
 
 # --- Schedules Store ---
@@ -251,11 +254,11 @@ def check_and_apply_schedules():
             # Handle schedules that cross midnight
             if end_minutes < start_minutes:
                 # Schedule spans across midnight
-                if current_minutes >= start_minutes or current_minutes <= end_minutes:
+                if current_minutes >= start_minutes or current_minutes < end_minutes:  # Changed <= to < for end time
                     schedule_active = True
             else:
                 # Schedule within the same day
-                if start_minutes <= current_minutes <= end_minutes:
+                if start_minutes <= current_minutes < end_minutes:  # Changed <= to < for end time
                     schedule_active = True
             
             if schedule_active:
@@ -511,12 +514,53 @@ def send_response(client_socket, status, body, content_type="text/plain"):
     response = f'{status}\r\nContent-Type: {content_type}\r\nContent-Length: {len(body)}\r\nConnection: close\r\n\r\n{body}'
     client_socket.sendall(response.encode('utf-8'))
 
+def get_device_id():
+    """Generate a unique device ID based on ESP32's MAC address"""
+    mac = ubinascii.hexlify(network.WLAN(network.STA_IF).config('mac')).decode()
+    return f"esp32-{mac}"
+
+def register_with_firebase():
+    """Register this device's IP with Firebase"""
+    try:
+        device_id = get_device_id()
+        
+        # Your Firebase URL - already set up!
+        firebase_url = "https://apollo-671a4-default-rtdb.asia-southeast1.firebasedatabase.app"
+        
+        # Data to register
+        data = {
+            "ip_address": esp32_ip,
+            "device_name": "Smart Lighting Controller",
+            "last_online": time.time(),
+            "device_type": "lighting"
+        }
+        
+        # Send to Firebase - note the /devices/ path and .json suffix required by Firebase
+        response = urequests.put(
+            f"{firebase_url}/devices/{device_id}.json",
+            json=data
+        )
+        
+        if response.status_code == 200:
+            print(f"Successfully registered with Firebase. Response: {response.text}")
+            return True
+        else:
+            print(f"Failed to register. Status: {response.status_code}, Response: {response.text}")
+            return False
+            
+    except Exception as e:
+        print(f"Error registering device: {e}")
+        return False
 
 # --- Main execution ---
 if __name__ == "__main__":
     esp32_ip = connect_wifi(WIFI_SSID, WIFI_PASSWORD)
 
     if esp32_ip:
+        # Register device with Firebase
+        register_with_firebase()
+        last_firebase_update = time.time()  # Track the initial registration time
+        
         # Try to load saved schedules
         load_schedules_from_file()
         
@@ -543,6 +587,11 @@ if __name__ == "__main__":
                     if time_synced and (current_time - last_schedule_check) >= CHECK_SCHEDULE_INTERVAL:
                         check_and_apply_schedules()
                         last_schedule_check = current_time
+                    
+                    # Check if it's time to update Firebase registration (every hour)
+                    if (current_time - last_firebase_update) >= 3600:
+                        if register_with_firebase():
+                            last_firebase_update = current_time
                     
                     # Set socket timeout to allow periodic checks
                     server_socket.settimeout(1.0)

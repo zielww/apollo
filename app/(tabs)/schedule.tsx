@@ -1,5 +1,5 @@
-import AsyncStorage from '@react-native-async-storage/async-storage'; // Import AsyncStorage
-import React, { useEffect, useState } from 'react'; // Import useState and useEffect
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, { useEffect, useState } from 'react';
 import {
     Alert,
     Dimensions,
@@ -13,20 +13,19 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 // import { router } from 'expo-router';
 
 import AddScheduleModal from '@/components/AddScheduleModal';
+import ESPDiscovery from '@/components/ESPDiscovery';
 
 const { width: screenWidth } = Dimensions.get('window');
 const HOUR_SLOT_WIDTH = 80;
-const ASYNC_STORAGE_KEY = '@smart_lighting_schedules'; // Define a key for AsyncStorage
+const ASYNC_STORAGE_KEY = '@smart_lighting_schedules'; 
 
-// API endpoint for the ESP32
-const ESP32_API_URL = 'http://192.168.101.102'; // CHANGE THIS TO YOUR ESP32 IP
 
 interface ScheduleItem {
     id: number;
     lightType: 'warm' | 'natural' | 'both';
     brightness: number;
-    startTime: Date; // Use Date objects
-    endTime: Date; // Use Date objects
+    startTime: Date; 
+    endTime: Date; 
     deviceId: string;
 }
 
@@ -39,18 +38,18 @@ const Schedule = () => {
     // Initialize schedules state as empty; data will be loaded from AsyncStorage
     const [schedules, setSchedules] = useState<ScheduleItem[]>([]);
 
+    const [esp32Address, setESP32Address] = useState<string | null>(null);
 
-    // --- Device List (Keep as is for now) ---
-    const availableDevices = [
-        ESP32_API_URL,
-    ];
+    // --- Device List ---
+    const availableDevices = esp32Address ? [esp32Address] : [];
+    const defaultSelectedDeviceId = esp32Address || '';
 
-    const defaultSelectedDeviceId = availableDevices.length > 0 ? availableDevices[0] : 'YOUR_ESP32_IP_ADDRESS';
-
-
-    // Array representing 24 hours (0 to 23)
     const hours = Array.from({ length: 24 }, (_, i) => i);
 
+    const handleDeviceFound = (address: string) => {
+        setESP32Address(address);
+        console.log("Found ESP32 at", address);
+    };
 
     // --- AsyncStorage Functions ---
 
@@ -99,6 +98,11 @@ const Schedule = () => {
     
     // Function to send schedules to the ESP32
     const syncSchedulesToESP32 = async (schedulesToSync: ScheduleItem[]) => {
+        if (!esp32Address) {
+            Alert.alert('Connection Error', 'ESP32 address not available. Please discover your device first.');
+            return false;
+        }
+        
         try {
             // Convert Date objects to strings for serialization
             const serializedSchedules = schedulesToSync.map(schedule => ({
@@ -109,8 +113,8 @@ const Schedule = () => {
 
             console.log('Syncing schedules to ESP32:', serializedSchedules);
 
-            // Send the schedules to the ESP32 via POST request
-            const response = await fetch(`${ESP32_API_URL}/set_schedule`, {
+            // Use the discovered address for the API call
+            const response = await fetch(`${esp32Address}/set_schedule`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -140,6 +144,23 @@ const Schedule = () => {
     // --- useEffect to Load Schedules on Component Mount ---
     useEffect(() => {
         loadSchedules(); // Load schedules when the component mounts
+        
+        // Load saved ESP32 address
+        const loadSavedESP32Address = async () => {
+            try {
+                const savedAddress = await AsyncStorage.getItem('@esp32_address');
+                if (savedAddress) {
+                    setESP32Address(savedAddress);
+                    console.log('Loaded saved ESP32 address:', savedAddress);
+                } else {
+                    console.log('No saved ESP32 address found');
+                }
+            } catch (e) {
+                console.error('Failed to load ESP32 address from AsyncStorage:', e);
+            }
+        };
+        
+        loadSavedESP32Address();
 
         // Optional: Clean up function if needed (not strictly necessary for loading on mount)
         // return () => { /* cleanup */ };
@@ -219,11 +240,11 @@ const Schedule = () => {
           return {
               schedule, // Original schedule item
               style: {
-                  position: 'absolute' as 'absolute',
-                  left: `${left}%` as `${string}%`,
-                  width: `${width}%` as `${string}%`,
-                  height: '80%' as `${string}%`,
-                  top: '10%' as `${string}%`,
+                  position: 'absolute',
+                  left: `${left}%`,
+                  width: `${width}%`,
+                  top: '10%',
+                  height: '80%',
                   borderRadius: 4,
               },
               className: `${bgColorClass}`, // Background color class
@@ -288,12 +309,12 @@ const Schedule = () => {
           // Don't forget to add syncSchedulesToESP32 here when implemented
      };
 
-
     return (
         <View className="flex-1 bg-primary" style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}>
-             {/* Title */}
+            
+            {/* Title */}
             <Text className="mt-8 mb-4 font-bold text-white text-3xl text-center">
-                Daily Calendar
+                Schedule
             </Text>
 
             {/* 24-Hour Calendar Scroll View (Horizontal) */}
@@ -329,7 +350,14 @@ const Schedule = () => {
                                             <TouchableOpacity
                                                  key={`${originalSchedule.id}-${hour}`}
                                                 className={`absolute rounded-sm ${className} items-center justify-center p-0.5 z-10`}
-                                                style={style}
+                                                style={{
+                                                    position: 'absolute',
+                                                    left: `${(segmentDetails.style.left).replace('%', '')}%`, 
+                                                    width: `${(segmentDetails.style.width).replace('%', '')}%`,
+                                                    height: '80%',
+                                                    top: '10%',
+                                                    borderRadius: 4
+                                                }}
                                                  onPress={() => { handleEditSchedule(originalSchedule); }}
                                                  onLongPress={() => { handleDeleteSchedule(originalSchedule.id); }}
                                             >
@@ -372,6 +400,10 @@ const Schedule = () => {
                 <Text className="font-semibold text-white text-lg">Add New Schedule</Text>
             </TouchableOpacity>
 
+            {/* Add ESPDiscovery component */}
+            <View className="mx-5 mb-2">
+                <ESPDiscovery onDeviceFound={handleDeviceFound} />
+            </View>
 
              {/* Display List of Schedules (Uncommented by user) */}
              {/* Now maps over the 'schedules' state */}
@@ -385,7 +417,6 @@ const Schedule = () => {
                                <View>
                                    <Text className="font-semibold text-white text-base capitalize">{schedule.lightType}</Text>
                                    <Text className="text-gray-300 text-sm">{formatTime(schedule.startTime)} - {formatTime(schedule.endTime)} ({schedule.brightness}%)</Text>
-                                    <Text className="text-gray-400 text-xs">Device: {schedule.deviceId}</Text>
                                </View>
                                 {/* Delete Button */}
                                 <TouchableOpacity onPress={() => handleDeleteSchedule(schedule.id)} className="bg-red-500 p-2 rounded-md">

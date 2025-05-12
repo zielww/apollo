@@ -1,3 +1,4 @@
+import ESPDiscovery from "@/components/ESPDiscovery";
 import { images } from "@/constants/images";
 import Slider from "@react-native-community/slider";
 import { Picker } from '@react-native-picker/picker'; // Import Picker
@@ -10,21 +11,11 @@ export default function Index() {
   const router = useRouter();
 
   // --- Device Management ---
-  // List of potential ESP32 IP addresses - Add your devices here!
-  const availableDevices = [
-      '192.168.101.101', 
-      '192.168.101.102', 
-      '192.168.101.103', 
-      '192.168.101.104', 
-      '192.168.101.105', 
-      '192.168.101.106', 
-      '192.168.101.107', 
-      '192.168.101.108', 
-  ];
-
   // State for the currently selected ESP32 IP Address
-  // Initialize with the first device in the list, or a default/saved value
-  const [esp32IpAddress, setEsp32IpAddress] = useState(availableDevices.length > 0 ? availableDevices[0] : 'YOUR_ESP32_IP_ADDRESS');
+  const [esp32IpAddress, setEsp32IpAddress] = useState<string | null>(null);
+  
+  // State for available devices (will be populated from Firebase)
+  const [availableDevices, setAvailableDevices] = useState<string[]>([]);
 
   // State to manage the currently selected light mode (optional, but helpful for UI)
   const [lightMode, setLightMode] = useState<'off' | 'warm' | 'natural' | 'both'>('off'); // Updated type to include 'both' for clarity
@@ -48,16 +39,25 @@ export default function Index() {
     }
   }, [warmBrightness, naturalBrightness])
 
+  // Handler for when an ESP32 device is found
+  const handleDeviceFound = (address: string) => {
+    setEsp32IpAddress(address);
+    
+    // Update available devices list
+    if (!availableDevices.includes(address)) {
+      setAvailableDevices([address, ...availableDevices]);
+    }
+  };
 
   // --- API Call Function ---
 
   const sendApiCommand = async (endpoint: string): Promise<boolean> => { // Added return type boolean
-    if (!esp32IpAddress || esp32IpAddress === 'YOUR_ESP32_IP_ADDRESS') {
-        Alert.alert("Configuration Error", "Please select an ESP32 device or set the IP address list.");
+    if (!esp32IpAddress) {
+        Alert.alert("Connection Error", "No ESP32 device connected. Please discover your device first.");
         return false; // Indicate failure
     }
     setLoading(true);
-    const url = `http://${esp32IpAddress}${endpoint}`;
+    const url = `${esp32IpAddress}${endpoint}`;
     console.log("Sending command to:", url);
     try {
       const response = await fetch(url);
@@ -72,7 +72,7 @@ export default function Index() {
       }
     } catch (error) {
       console.error(`Error sending command to ${url}:`, error);
-      Alert.alert("Network Error", `Could not connect to ESP32 at ${esp32IpAddress}. Is it on the same network?`);
+      Alert.alert("Network Error", `Could not connect to ESP32. Is it on the same network?`);
       return false; // Indicate failure
     } finally {
       setLoading(false);
@@ -156,9 +156,11 @@ export default function Index() {
             showsVerticalScrollIndicator={false}
         >
             {/* Title */}
-            <Text className="mb-8 font-bold text-white text-3xl text-center">
-                Smart Lighting Control
+            <Text className="mb-4 font-bold text-white text-3xl text-center">
+                Home
             </Text>
+            
+            
 
              {/* Loading Indicator */}
             {loading ? (
@@ -169,32 +171,32 @@ export default function Index() {
             ): null}
 
              {/* Device Selection Picker */}
-             <View className="mb-8">
-                <Text className="mb-2 font-semibold text-white text-lg">Select Device:</Text>
-                <View style={styles.pickerContainer}> {/* Wrapper for styling */}
-                    <Picker
-                        selectedValue={esp32IpAddress}
-                        onValueChange={(itemValue, itemIndex) =>
-                            setEsp32IpAddress(itemValue)
-                        }
-                         // Style the picker text color (Android and iOS different props)
-                        style={styles.picker}
-                        itemStyle={styles.pickerItem} // iOS only
-                    >
-                        {availableDevices.map(deviceIp => (
-                            <Picker.Item key={deviceIp} label={deviceIp} value={deviceIp} />
-                        ))}
-                         {/* Add an option if no devices are listed initially */}
-                         {availableDevices.length === 0 ? (
-                             <Picker.Item label="No devices found" value="YOUR_ESP32_IP_ADDRESS" />
-                         ): null}
-                    </Picker>
-                </View>
-                <Text className="mt-2 text-white text-sm text-center">
-                     Controlling: {esp32IpAddress}
-                </Text>
-             </View>
+             {availableDevices.length > 0 && (
+               <View className="mb-3">
+                  <Text className="mb-2 font-semibold text-white text-lg">Select Device:</Text>
+                  <View style={styles.pickerContainer}> {/* Wrapper for styling */}
+                      <Picker
+                          selectedValue={esp32IpAddress || ''}
+                          onValueChange={(itemValue) =>
+                              setEsp32IpAddress(itemValue)
+                          }
+                           // Style the picker text color (Android and iOS different props)
+                          style={styles.picker}
+                          itemStyle={styles.pickerItem} // iOS only
+                      >
+                          {availableDevices.map(deviceIp => (
+                              <Picker.Item key={deviceIp} label={deviceIp} value={deviceIp} />
+                          ))}
+                      </Picker>
+                  </View>
+               </View>
+             )}
+             
 
+             {/* Add ESPDiscovery component */}
+            <ESPDiscovery onDeviceFound={handleDeviceFound} />
+             
+            <View className="my-6 bg-neutral-800 w-full h-1"></View>
 
             {/* Current Mode Display (Optional but helpful) */}
              <Text className="mb-4 text-white text-lg text-center">
@@ -203,24 +205,20 @@ export default function Index() {
 
             {/* ON Buttons Container - Your original buttons */}
              <View className="flex-row justify-around mb-4">
-               <TouchableOpacity
-                    className="flex-1 items-center bg-orange-500 mx-1 p-4 rounded-lg"
-                    onPress={warmBrightness > 0 ? sendWarmOff : sendWarmOn}><Text className="font-semibold text-white text-lg">{warmBrightness > 0 ? 'Warm Off' : 'Warm On'}</Text>
-                </TouchableOpacity>
+                <TouchableOpacity className={`${warmBrightness > 0 ? `opacity-50` : ``} flex-1 items-center bg-accent  mx-1 p-4 rounded-lg`}
+                  onPress={warmBrightness > 0 ? sendWarmOff : sendWarmOn}>
+                      <Text className="font-semibold text-white text-lg">Warm</Text>
+                      <Text className="font-semibold text-white text-lg">{warmBrightness > 0 ? 'Off' : 'On'}</Text> 
+                </TouchableOpacity>
 
-                 <TouchableOpacity
-                    className="flex-1 items-center bg-neutral-500 mx-1 p-4 rounded-lg"
-                    onPress={naturalBrightness > 0 ? sendNaturalOff : sendNaturalOn}><Text className="font-semibold text-white text-lg">{naturalBrightness > 0 ? 'Natural Off' : 'Natural On'}</Text>
-                </TouchableOpacity>
-             </View>
-
-              <View className="flex-row justify-around mb-8">
-                {/* Dedicated ALL OFF button - Your original button */}
-                 <TouchableOpacity
-                    className="flex-1 items-center bg-red-500 mx-1 p-3 rounded-lg"
-                    onPress={handleAllOff}><Text className="font-semibold text-white text-base">TURN OFF</Text>
+                <TouchableOpacity className={`${naturalBrightness > 0 ? `opacity-50` : ``} flex-1 items-center bg-white mx-1 p-4 rounded-lg`} 
+                  onPress={naturalBrightness > 0 ? sendNaturalOff : sendNaturalOn}>
+                  <Text className="font-semibold text-neutral-700 text-lg">Natural</Text>
+                  <Text className="font-semibold text-neutral-700 text-lg">{naturalBrightness > 0 ? 'Off' : 'On'}</Text>
                 </TouchableOpacity>
              </View>
+
+             
 
 
             {/* Brightness Sliders Area - Remains the same */}
@@ -234,9 +232,9 @@ export default function Index() {
                     value={warmBrightness}
                     onValueChange={handleWarmBrightnessChange}
                     onSlidingComplete={handleWarmSlidingComplete}
-                    minimumTrackTintColor="#FFA500" // Orange (Reverted from AB8BFF to keep your original colors)
+                    minimumTrackTintColor="#AB8BFF" // Orange (Reverted from AB8BFF to keep your original colors)
                     maximumTrackTintColor="#FFFFFF"
-                    thumbTintColor="#FFA500" // Orange (Reverted)
+                    thumbTintColor="#AB8BFF" // Orange (Reverted)
                 />
 
                 {/* Natural Brightness Slider */}

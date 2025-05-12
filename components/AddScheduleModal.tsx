@@ -1,10 +1,8 @@
-// components/AddScheduleModal.tsx
-import DateTimePicker from '@react-native-community/datetimepicker'; // Import Date/Time Picker
+import DateTimePicker from '@react-native-community/datetimepicker';
 import Slider from '@react-native-community/slider';
 import React, { useState } from 'react';
 import { Alert, Modal, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
-// Define types for form state (Keep consistent with schedule.tsx)
 type LightType = 'warm' | 'natural' | 'both';
 
 interface AddScheduleModalProps {
@@ -12,13 +10,13 @@ interface AddScheduleModalProps {
     onClose: () => void;
     onAddSchedule: (schedule: {
         lightType: LightType;
-        brightness: number; // 0-100
+        brightness: number; 
         startTime: Date;
         endTime: Date;
-        deviceId: string; // To associate schedule with a specific ESP32
+        deviceId: string;
     }) => void;
-    availableDevices: string[]; // List of device IPs for selection
-    selectedDeviceId: string; // Currently selected device IP (for default)
+    availableDevices: string[]; 
+    selectedDeviceId: string; 
 }
 
 const AddScheduleModal: React.FC<AddScheduleModalProps> = ({
@@ -192,7 +190,7 @@ const AddScheduleModal: React.FC<AddScheduleModalProps> = ({
                         {/* Start Time */}
                         <View className="flex-1 mr-2">
                              <Text className="mb-1 text-white text-base">Start Time:</Text>
-                             <TouchableOpacity onPress={() => setShowStartTimePicker(true)} className="items-center bg-white p-3 border border-gray-500 rounded-lg"><Text className="text-white text-base">{formatTime(startTime)}</Text>
+                             <TouchableOpacity onPress={() => setShowStartTimePicker(true)} className="items-center bg-white p-3 border border-gray-500 rounded-lg"><Text className="text-neutral-800 text-base">{formatTime(startTime)}</Text>
                              </TouchableOpacity>
                              {showStartTimePicker ? (
                                  <DateTimePicker
@@ -210,7 +208,7 @@ const AddScheduleModal: React.FC<AddScheduleModalProps> = ({
                         {/* End Time */}
                          <View className="flex-1 ml-2">
                              <Text className="mb-1 text-white text-base">End Time:</Text>
-                             <TouchableOpacity onPress={() => setShowEndTimePicker(true)} className="items-center  bg-white p-3 border border-gray-500 rounded-lg"><Text className="text-white text-base">{formatTime(endTime)}</Text>
+                             <TouchableOpacity onPress={() => setShowEndTimePicker(true)} className="items-center  bg-white p-3 border border-gray-500 rounded-lg"><Text className="text-neutral-800 text-base">{formatTime(endTime)}</Text>
                              </TouchableOpacity>
                               {showEndTimePicker ? (
                                  <DateTimePicker
