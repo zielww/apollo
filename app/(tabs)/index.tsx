@@ -1,4 +1,5 @@
 import ESPDiscovery from "@/components/ESPDiscovery";
+import WiFiSetupModal from "@/components/WiFiSetupModal";
 import { images } from "@/constants/images";
 import Slider from "@react-native-community/slider";
 import { Picker } from '@react-native-picker/picker'; // Import Picker
@@ -26,6 +27,12 @@ export default function Index() {
 
   // State to indicate if an API call is in progress (optional feedback)
   const [loading, setLoading] = useState(false);
+  
+  // State for WiFi setup modal
+  const [isWifiModalVisible, setIsWifiModalVisible] = useState(false);
+  
+  // State to track if device is in AP mode (setup mode)
+  const [isDeviceInApMode, setIsDeviceInApMode] = useState(false);
 
   useEffect(() => {
     if (warmBrightness >= 1 && naturalBrightness >= 1) {
@@ -40,12 +47,28 @@ export default function Index() {
   }, [warmBrightness, naturalBrightness])
 
   // Handler for when an ESP32 device is found
-  const handleDeviceFound = (address: string) => {
+  const handleDeviceFound = async (address: string) => {
     setEsp32IpAddress(address);
     
     // Update available devices list
     if (!availableDevices.includes(address)) {
       setAvailableDevices([address, ...availableDevices]);
+    }
+    
+    // Check if device is in AP mode
+    try {
+      const response = await fetch(`${address}/wifi/status`);
+      if (response.ok) {
+        const status = await response.json();
+        setIsDeviceInApMode(!status.connected);
+        
+        // Automatically show WiFi setup modal if device is in AP mode
+        if (!status.connected) {
+          setIsWifiModalVisible(true);
+        }
+      }
+    } catch (error) {
+      console.error('Error checking device mode:', error);
     }
   };
 
@@ -141,6 +164,19 @@ export default function Index() {
       else setLightMode('warm'); // If natural is 0 and warm > 0, mode is warm (assuming only warm/natural exist)
   };
 
+  // Handler for WiFi configuration success
+  const handleWifiConfigSuccess = () => {
+    // Reset the device in AP mode flag
+    setIsDeviceInApMode(false);
+    
+    // You may want to wait a bit before trying to rediscover the device
+    setTimeout(() => {
+      Alert.alert(
+        "Reconnect Required",
+        "The ESP32 has restarted with new WiFi settings. Please reconnect to your regular WiFi network and tap Discover ESP32 again."
+      );
+    }, 1000);
+  };
 
   return (
     <View className="flex-1 bg-primary">
@@ -192,11 +228,36 @@ export default function Index() {
                </View>
              )}
              
+             {/* Device Management */}
+             <View className="flex-row justify-between mb-1">
+                <View className="flex-1 mr-2">
+                    <ESPDiscovery onDeviceFound={handleDeviceFound} />
+                </View>
+               
+               
+             </View>
 
-             {/* Add ESPDiscovery component */}
-            <ESPDiscovery onDeviceFound={handleDeviceFound} />
+             <View>
+              {esp32IpAddress && (
+                      <TouchableOpacity 
+                          className="flex-1 mr-2 items-center bg-indigo-600 p-4 rounded-lg"
+                          onPress={() => setIsWifiModalVisible(true)}
+                      >
+                          <Text className="font-semibold text-white text-base">Configure WiFi</Text>
+                      </TouchableOpacity>
+                  )}
+             </View>
              
-            <View className="my-6 bg-neutral-800 w-full h-1"></View>
+             {/* Warning if in AP mode */}
+             {isDeviceInApMode && (
+                <View className="mb-4 p-3 bg-yellow-500 rounded-lg">
+                    <Text className="text-black font-bold text-center">
+                        Device is in setup mode. Please configure WiFi settings.
+                    </Text>
+                </View>
+             )}
+             
+            <View className="mt-4 mb-2 bg-neutral-800 w-full h-1"></View>
 
             {/* Current Mode Display (Optional but helpful) */}
              <Text className="mb-4 text-white text-lg text-center">
@@ -217,9 +278,6 @@ export default function Index() {
                   <Text className="font-semibold text-neutral-700 text-lg">{naturalBrightness > 0 ? 'Off' : 'On'}</Text>
                 </TouchableOpacity>
              </View>
-
-             
-
 
             {/* Brightness Sliders Area - Remains the same */}
             <View className="mb-8">
@@ -251,8 +309,15 @@ export default function Index() {
                     thumbTintColor="#CCCCCC" // Light Gray (Reverted)
                 />
             </View>
-
         </ScrollView>
+        
+        {/* WiFi Setup Modal */}
+        <WiFiSetupModal
+            isVisible={isWifiModalVisible}
+            onClose={() => setIsWifiModalVisible(false)}
+            deviceAddress={esp32IpAddress}
+            onSuccess={handleWifiConfigSuccess}
+        />
     </View>
   );
 }

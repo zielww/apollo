@@ -10,8 +10,9 @@ import urequests
 import ubinascii
 
 # --- Wi-Fi Configuration ---
-WIFI_SSID = "Abita"          # <<<<<<<< CHANGE THIS
-WIFI_PASSWORD = "October242014" # <<<<<<<< CHANGE THIS
+WIFI_CONFIG_FILE = "wifi_config.json"  # File to store WiFi credentials
+WIFI_SSID = ""          
+WIFI_PASSWORD = "" 
 
 # --- LED Configuration ---
 WARM_LED_PIN = 18
@@ -421,6 +422,17 @@ def handle_request(client_socket):
                     response_status = "HTTP/1.1 500 Internal Server Error"
                     response_body = "Failed to sync time"
                 handled = True
+            elif path == "/wifi/status":
+                # Return current WiFi status
+                sta_if = network.WLAN(network.STA_IF)
+                status = {
+                    "connected": sta_if.isconnected(),
+                    "ssid": WIFI_SSID,
+                    "ip": sta_if.ifconfig()[0] if sta_if.isconnected() else None
+                }
+                response_body = ujson.dumps(status)
+                content_type = "application/json"
+                handled = True
 
 
         elif method == 'POST':
@@ -474,6 +486,61 @@ def handle_request(client_socket):
                         response_status = "HTTP/1.1 400 Bad Request"
                         response_body = f"Invalid JSON format: {e}"
                         print(f"JSON parsing error: {e}, Payload: '{json_payload_str}'")
+                        handled = True
+            elif path == "/wifi/config":
+                content_length = 0
+                for line in request_lines[1:]: # Skip the first line (request line)
+                    if line.lower().startswith('content-length:'):
+                        try:
+                            content_length = int(line.split(':')[1].strip())
+                        except ValueError:
+                            send_response(client_socket, "HTTP/1.1 400 Bad Request", "Invalid Content-Length", "text/plain")
+                            return
+                        break
+                
+                if content_length == 0:
+                    send_response(client_socket, "HTTP/1.1 400 Bad Request", "Content-Length header missing or zero for POST", "text/plain")
+                    return
+
+                # Get the JSON payload
+                json_payload_str = body_part[:content_length]
+                
+                if not json_payload_str:
+                    response_status = "HTTP/1.1 400 Bad Request"
+                    response_body = "Empty JSON payload"
+                    handled = True
+                else:
+                    try:
+                        wifi_config = ujson.loads(json_payload_str)
+                        ssid = wifi_config.get("ssid", "")
+                        password = wifi_config.get("password", "")
+                        
+                        if not ssid:
+                            response_status = "HTTP/1.1 400 Bad Request"
+                            response_body = "SSID cannot be empty"
+                            handled = True
+                        else:
+                            # Save the new WiFi configuration
+                            if save_wifi_config(ssid, password):
+                                response_body = "WiFi configuration updated. Restarting ESP32..."
+                                handled = True
+                                
+                                # Send response before restarting
+                                send_response(client_socket, response_status, response_body, content_type)
+                                client_socket.close()
+                                
+                                # Wait a moment to ensure the response is sent
+                                time.sleep(1)
+                                
+                                # Restart the ESP32 to apply new WiFi settings
+                                machine.reset()
+                            else:
+                                response_status = "HTTP/1.1 500 Internal Server Error"
+                                response_body = "Failed to save WiFi configuration"
+                                handled = True
+                    except ValueError as e:
+                        response_status = "HTTP/1.1 400 Bad Request"
+                        response_body = f"Invalid JSON format: {e}"
                         handled = True
             else: # Unknown POST path
                 response_status = "HTTP/1.1 404 Not Found"
@@ -552,10 +619,72 @@ def register_with_firebase():
         print(f"Error registering device: {e}")
         return False
 
+def load_wifi_config():
+    """Load WiFi credentials from a file."""
+    global WIFI_SSID, WIFI_PASSWORD
+    try:
+        with open(WIFI_CONFIG_FILE, 'r') as f:
+            config = ujson.load(f)
+            WIFI_SSID = config.get("ssid", "")
+            WIFI_PASSWORD = config.get("password", "")
+            print(f"Loaded WiFi credentials for SSID: {WIFI_SSID}")
+            return True
+    except OSError as e:
+        # File might not exist yet, which is fine
+        if "ENOENT" in str(e):
+            print(f"No WiFi config file found at {WIFI_CONFIG_FILE}. Using defaults.")
+        else:
+            print(f"Error loading WiFi config from file: {e}")
+        return False
+
+def save_wifi_config(ssid, password):
+    """Save WiFi credentials to a file."""
+    global WIFI_SSID, WIFI_PASSWORD
+    try:
+        config = {
+            "ssid": ssid,
+            "password": password
+        }
+        with open(WIFI_CONFIG_FILE, 'w') as f:
+            ujson.dump(config, f)
+        # Update global variables
+        WIFI_SSID = ssid
+        WIFI_PASSWORD = password
+        print(f"Saved WiFi credentials for SSID: {ssid}")
+        return True
+    except OSError as e:
+        print(f"Error saving WiFi config to file: {e}")
+        return False
+
 # --- Main execution ---
 if __name__ == "__main__":
+    # Load saved WiFi credentials
+    load_wifi_config()
+    
+    # Try to connect with saved credentials
     esp32_ip = connect_wifi(WIFI_SSID, WIFI_PASSWORD)
 
+    # If cannot connect, start in AP mode to allow configuration
+    if not esp32_ip:
+        print("Could not connect to WiFi. Starting Access Point mode...")
+        ap = network.WLAN(network.AP_IF)
+        ap.active(True)
+        
+        # Generate a unique AP name using the device ID
+        device_id = get_device_id()
+        ap_ssid = f"ESP32-Setup-{device_id[-4:]}"  # Use last 4 chars of device ID
+        ap_password = "12345678"  # Simple password for setup
+        
+        ap.config(essid=ap_ssid, password=ap_password)
+        while not ap.active():
+            time.sleep(0.1)
+        
+        print(f"Access Point started: SSID: {ap_ssid}, Password: {ap_password}")
+        print(f"AP IP address: {ap.ifconfig()[0]}")
+        
+        # Use the AP IP address for the server
+        esp32_ip = ap.ifconfig()[0]
+    
     if esp32_ip:
         # Register device with Firebase
         register_with_firebase()

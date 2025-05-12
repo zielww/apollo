@@ -18,6 +18,7 @@ const ESPDiscovery: React.FC<ESPDiscoveryProps> = ({ onDeviceFound }) => {
   const [deviceInfo, setDeviceInfo] = useState<ESP32Device | null>(null);
   const [esp32Address, setEsp32Address] = useState<string | null>(null);
   const [deviceId, setDeviceId] = useState<string | null>(null);
+  const [connectionMode, setConnectionMode] = useState<'station' | 'ap' | 'unknown'>('unknown');
 
   // Firebase URL
   const firebaseUrl = "https://apollo-671a4-default-rtdb.asia-southeast1.firebasedatabase.app";
@@ -37,6 +38,8 @@ const ESPDiscovery: React.FC<ESPDiscoveryProps> = ({ onDeviceFound }) => {
         
         if (savedAddress) {
           setEsp32Address(savedAddress);
+          // Check if the device is in AP mode
+          checkConnectionMode(savedAddress);
           // Notify parent component about the device address
           onDeviceFound(savedAddress);
         }
@@ -50,6 +53,22 @@ const ESPDiscovery: React.FC<ESPDiscoveryProps> = ({ onDeviceFound }) => {
     // Also try to discover devices on component mount
     discoverDevices();
   }, []);
+
+  // Check if the device is in AP mode or station mode
+  const checkConnectionMode = async (address: string) => {
+    try {
+      // Try to get the WiFi status
+      const response = await fetch(`${address}/wifi/status`);
+      if (response.ok) {
+        const status = await response.json();
+        setConnectionMode(status.connected ? 'station' : 'ap');
+      }
+    } catch (error) {
+      console.error('Error checking connection mode:', error);
+      // If we can't connect, assume it might be in AP mode
+      setConnectionMode('unknown');
+    }
+  };
 
   // Function to discover all available ESP32 devices from Firebase
   const discoverDevices = async () => {
@@ -90,6 +109,9 @@ const ESPDiscovery: React.FC<ESPDiscoveryProps> = ({ onDeviceFound }) => {
           
         setEsp32Address(formattedIp);
         await AsyncStorage.setItem('@esp32_address', formattedIp);
+        
+        // Check if the device is in AP mode
+        checkConnectionMode(formattedIp);
         
         // Notify parent component
         onDeviceFound(formattedIp);
@@ -138,6 +160,9 @@ const ESPDiscovery: React.FC<ESPDiscoveryProps> = ({ onDeviceFound }) => {
       setEsp32Address(formattedIp);
       await AsyncStorage.setItem('@esp32_address', formattedIp);
       
+      // Check if the device is in AP mode
+      checkConnectionMode(formattedIp);
+      
       // Notify parent component
       onDeviceFound(formattedIp);
       
@@ -178,6 +203,25 @@ const ESPDiscovery: React.FC<ESPDiscoveryProps> = ({ onDeviceFound }) => {
 
   return (
     <View style={styles.container}>
+      {connectionMode === 'ap' && esp32Address && (
+        <View style={styles.apModeWarning}>
+          <Text style={styles.apModeText}>
+            Device in Setup Mode. Configure WiFi before using.
+          </Text>
+        </View>
+      )}
+
+      {deviceInfo && esp32Address && (
+        <View style={styles.deviceInfoContainer}>
+          <Text style={styles.deviceInfoText}>
+            Connected to: {deviceInfo.device_name || "ESP32 Device"}
+          </Text>
+          <Text style={styles.deviceInfoText}>
+            Mode: {connectionMode === 'station' ? 'Normal' : connectionMode === 'ap' ? 'Setup' : 'Unknown'}
+          </Text>
+        </View>
+      )}
+
       <TouchableOpacity
         style={[styles.button, isDiscovering && styles.buttonDisabled]}
         onPress={discoverDevices}
@@ -188,9 +232,12 @@ const ESPDiscovery: React.FC<ESPDiscoveryProps> = ({ onDeviceFound }) => {
           {isDiscovering ? "Discovering..." : "Discover ESP32"}
         </Text>
       </TouchableOpacity>
+      
       {isDiscovering && (
         <ActivityIndicator style={styles.loader} color="#AB8BFF" />
       )}
+
+      
     </View>
   );
 };
@@ -206,7 +253,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#AB8BFF',
     paddingVertical: 15,
     paddingHorizontal: 25,
-    borderRadius: 12,
+    borderRadius: 8,
     elevation: 3,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -220,7 +267,28 @@ const styles = StyleSheet.create({
   buttonText: {
     color: 'white',
     fontWeight: 'bold',
-    fontSize: 16,
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  deviceInfoContainer: {
+    marginBottom: 10,
+    padding: 2,
+    backgroundColor: 'rgba(0, 0, 0, 0.2)',
+    borderRadius: 8,
+  },
+  deviceInfoText: {
+    color: 'white',
+    fontSize: 14,
+  },
+  apModeWarning: {
+    backgroundColor: '#FFB302',
+    padding: 10,
+    borderRadius: 8,
+    marginBottom: 10,
+  },
+  apModeText: {
+    color: '#000',
+    fontWeight: 'bold',
     textAlign: 'center',
   }
 });

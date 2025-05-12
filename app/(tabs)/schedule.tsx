@@ -13,7 +13,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 // import { router } from 'expo-router';
 
 import AddScheduleModal from '@/components/AddScheduleModal';
-import ESPDiscovery from '@/components/ESPDiscovery';
 
 const { width: screenWidth } = Dimensions.get('window');
 const HOUR_SLOT_WIDTH = 80;
@@ -465,11 +464,11 @@ const Schedule = () => {
             >
                 <Text className="font-semibold text-white text-lg">Add New Schedule</Text>
             </TouchableOpacity>
-
-            {/* Add ESPDiscovery component */}
+        
+            {/* Add ESPDiscovery component
             <View className="mx-5 mb-2">
                 <ESPDiscovery onDeviceFound={handleDeviceFound} />
-            </View>
+            </View> */}
 
              {/* Display List of Schedules with proper scrolling */}
              <View className="flex-1 mt-2 px-5">
