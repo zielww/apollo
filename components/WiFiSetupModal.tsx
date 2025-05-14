@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Modal,
-    StyleSheet,
-    Switch,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  Alert,
+  Modal,
+  StyleSheet,
+  Switch,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
 
 interface WiFiSetupModalProps {
@@ -45,7 +45,7 @@ const WiFiSetupModal: React.FC<WiFiSetupModalProps> = ({
 
     try {
       // Send the WiFi configuration to the ESP32
-      const response = await fetch(`${deviceAddress}/wifi/config`, {
+      const response = await fetch(`192.168.4.1/wifi/config`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
